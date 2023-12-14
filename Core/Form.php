@@ -4,7 +4,6 @@ namespace Core;
 
 use Stringable;
 
-use function PHPSTORM_META\type;
 
 class Form extends Renderer
 {
@@ -85,7 +84,19 @@ class Form extends Renderer
 
     private static function textareaHtml(object $column): string
     {
-        return self::el('textarea', ['class' => 'form-control', 'name' => $column->name]);
+        return self::el(
+            'textarea',
+            [
+                'class' => 'form-control', 'name' => $column->name,
+            ],
+            self::$entity
+                ? self::$entity->{$column->name} // edit values
+                : (
+                    !empty(self::$inputs)
+                    ? self::$inputs[$column->name] //input values
+                    : ''
+                )
+        );
     }
 
     private static function inputHtml(object $column): string
@@ -111,11 +122,18 @@ class Form extends Renderer
 
     private static function inputZone($column): string
     {
-        $input = match ($column->type) {
-            'enum' => self::selectHtml($column),
-            self::isLongTextType($column->type) => self::textareaHtml($column),
-            default => self::inputHtml($column)
-        };
+        dump($column);
+
+        $input = '';
+
+        if ($column->type === "enum") {
+            $input = self::selectHtml($column);
+        } elseif (self::isLongTextType($column->type)) {
+            $input = self::textareaHtml($column);
+        } else {
+            $input = self::inputHtml($column);
+        }
+
 
         return self::el('div', ['class' => 'row mb-2'], [
             self::el('div', ['class' => 'col-3'], [

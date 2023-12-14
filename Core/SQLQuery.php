@@ -50,7 +50,7 @@ class SQLQuery
 
                 return (object)[
                     "name" => $column->COLUMN_NAME,
-                    "col umn_type" => $column->COLUMN_TYPE,
+                    "column_type" => $column->COLUMN_TYPE,
                     "type" => $column->DATA_TYPE,
                     "max_length" => $column->CHARACTER_MAXIMUM_LENGTH,
                     "possible_values" => $possible_values,
