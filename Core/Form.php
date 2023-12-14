@@ -2,6 +2,10 @@
 
 namespace Core;
 
+use Stringable;
+
+use function PHPSTORM_META\type;
+
 class Form extends Renderer
 {
     private static ?string $table = null;
@@ -18,8 +22,101 @@ class Form extends Renderer
      */
     private static array $inputs =  [];
 
+    private static array $numeric_types = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'bit', 'float', 'double', 'decimal'];
+
+    private static array $big_text_types = ['tinytext',  'mediumtext', 'text', 'longtext'];
+
+
+
+    private static function isNumeric($type): bool
+    {
+        return in_array($type, self::$numeric_types);
+    }
+
+    private static function isLongTextType($type): bool
+    {
+        return in_array($type, self::$big_text_types);
+    }
+
+    private static function getInputType($column)
+    {
+        if ($column->name === 'email') return 'email';
+        if ($column->name === 'password') return 'password';
+
+        return match ($column->type) {
+            self::isLongTextType($column->type) => 'text',
+            'date' => 'date',
+            'time', 'timestamp' => 'time',
+            'datetime' => 'datetime-local',
+            'varchar', 'char', self::isNumeric($column->type) => "text",
+            default => 'text'
+        };
+    }
+
+    private static function selectHtml(object $column): string
+    {
+        dump($column);
+
+        $options = [self::el('option', children: 'Choose')];
+
+        foreach ($column->possible_values as $value) {
+            $options[] = self::el(
+                'option',
+                [
+                    'value' => $value,
+                    'selected' => self::$entity
+                        ? self::$entity->{$column->name} === $value // edit values
+                        : (
+                            !empty(self::$inputs)
+                            ? self::$inputs[$column->name] === $value //input values
+                            : false
+                        )
+                ],
+                titleCase($value)
+            );
+        }
+
+        return self::el(
+            'select',
+            ['class' => 'form-select', 'name' => $column->name],
+            $options
+        );
+    }
+
+    private static function textareaHtml(object $column): string
+    {
+        return self::el('textarea', ['class' => 'form-control', 'name' => $column->name]);
+    }
+
+    private static function inputHtml(object $column): string
+    {
+        return self::el(
+            "input",
+            [
+                'type' => self::getInputType($column),
+                'class' => 'form-control',
+                'name' => $column->name,
+                'id' => $column->name,
+                'value' => self::$entity
+                    ? self::$entity->{$column->name} // edit values
+                    : (
+                        !empty(self::$inputs)
+                        ? self::$inputs[$column->name] //input values
+                        : ''
+                    )
+            ],
+            self_closing: true
+        );
+    }
+
     private static function inputZone($column): string
     {
+        $input = match ($column->type) {
+            'enum' => self::selectHtml($column),
+            self::isLongTextType($column->type) => self::textareaHtml($column),
+            default => self::inputHtml($column)
+        };
+
         return self::el('div', ['class' => 'row mb-2'], [
             self::el('div', ['class' => 'col-3'], [
                 self::el(
@@ -29,19 +126,7 @@ class Form extends Renderer
                 )
             ]),
             self::el('div', ['class' => 'col-9'], [
-                self::el(
-                    'input',
-                    [
-                        'class' => 'form-control',
-                        'name' => $column->name,
-                        'id' => $column->name,
-                        'value' => self::$entity
-                            ? self::$entity->{$column->name} // edit values
-                            : (!empty(self::$inputs)
-                                ? self::$inputs[$column->name] //input values
-                                : '')
-                    ],
-                )
+                $input
             ]),
         ]);
     }
@@ -56,25 +141,37 @@ class Form extends Renderer
         }
     }
 
-    private static function handlePostRequest()
+    private static function handleEditing()
     {
 
-        if (Request::isParam('action', 'edit')) {
-            $values = [];
-            foreach (self::$entity as $key => $_) {
-                if ($key != self::$primaryKey)
-                    $values[$key] = Request::input($key);
-            }
-            DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
-            header('Location: index.php');
-            exit;
-            self::$entity = DB::table(self::$table)->find(Request::param(self::$primaryKey));
-        } elseif (Request::isParam('action', 'create')) {
-            foreach ($_POST as $k => $v) self::$inputs[$k] = $v;
+        $values = [];
 
-            DB::table(self::$table)->insert(self::$inputs);
-            header('Location: index.php');
-            exit;
+        // Updating an existing Resource
+        foreach (self::$entity as $key => $_) {
+            if ($key != self::$primaryKey)
+                $values[$key] = Request::input($key);
+        }
+
+        DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
+        redirect('index.php');
+        // self::$entity = DB::table(self::$table)->find(Request::param(self::$primaryKey));
+    }
+
+    private static function handleCreation()
+    {
+        // Creating a new Resource
+        foreach ($_POST as $k => $v) self::$inputs[$k] = $v;
+
+        DB::table(self::$table)->insert(self::$inputs);
+        redirect('index.php');
+    }
+
+    private static function handlePostRequest()
+    {
+        if (Request::isParam('action', 'edit')) {
+            self::handleEditing();
+        } elseif (Request::isParam('action', 'create')) {
+            self::handleCreation();
         }
     }
 
@@ -88,6 +185,12 @@ class Form extends Renderer
 
         if (Request::isPost()) self::handlePostRequest();
 
+        /**
+         * Start Rendering
+         */
+
+        $columns = DB::table(self::$table)->getColumnsWithTypes();
+
         $inputs = array_map(
             function ($column) {
                 $isPrimaryKey = $column->name === self::$primaryKey;
@@ -95,7 +198,7 @@ class Form extends Renderer
                 return  $isPrimaryKey // Skip primary key
                     ? '' : self::inputZone($column);
             },
-            DB::table(self::$table)->getColumnsWithTypes()
+            $columns
         );
 
         $button = self::el(
@@ -128,5 +231,11 @@ class Form extends Renderer
     static function render(?string $table = null): void
     {
         echo self::html($table);
+    }
+
+    static function writeFile(?string $table = null, string $filename = 'draft.php'): void
+    {
+        $content = self::html($table);
+        file_put_contents($filename, $content);
     }
 }

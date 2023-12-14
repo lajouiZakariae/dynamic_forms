@@ -7,6 +7,12 @@ function dump($p): void
     echo '</pre>';
 }
 
+function dd($p): void
+{
+    dump($p);
+    die();
+}
+
 function titleCase(string $str): string
 {
     return ucfirst(str_replace('_', ' ', $str));
@@ -31,4 +37,10 @@ function scriptParentDir(): string
 function isCurrentPage(string $value): bool
 {
     return scriptParentDir($_SERVER['SCRIPT_NAME']) === $value;
+}
+
+function redirect(string $path): void
+{
+    header('Location: ' . $path);
+    exit;
 }

@@ -24,21 +24,40 @@ class SQLQuery
      * Methods for getting information about columns
      */
 
+    private function extractEnumValues($column_type): array
+    {
+        return array_map(
+            fn (string $val) => substr($val, 1, strlen($val) - 2),
+            explode(',', substr($column_type, 5, strlen($column_type) - 6))
+        );
+    }
+
     private  function loadColumns()
     {
         $result = DB::table('information_schema.`COLUMNS`')
             ->whereEquals('TABLE_SCHEMA', DBNAME)
             ->whereEquals('TABLE_NAME', $this->table)
             ->sortyBy('ORDINAL_POSITION')
-            ->all(['COLUMN_NAME', 'DATA_TYPE', 'COLUMN_KEY']);
-
+            ->all(['COLUMN_NAME', 'DATA_TYPE', 'COLUMN_TYPE', 'COLUMN_KEY', 'CHARACTER_MAXIMUM_LENGTH', 'IS_NULLABLE']);
 
         $this->table_columns = array_map(
-            fn (object $column) => (object)[
-                "name" => $column->COLUMN_NAME,
-                "type" => $column->DATA_TYPE,
-                "primary" => $column->COLUMN_KEY === "PRI",
-            ],
+            function (object $column) {
+                $possible_values = null;
+
+                if ($column->DATA_TYPE === 'enum') {
+                    $possible_values = $this->extractEnumValues($column->COLUMN_TYPE);
+                }
+
+                return (object)[
+                    "name" => $column->COLUMN_NAME,
+                    "col umn_type" => $column->COLUMN_TYPE,
+                    "type" => $column->DATA_TYPE,
+                    "max_length" => $column->CHARACTER_MAXIMUM_LENGTH,
+                    "possible_values" => $possible_values,
+                    "nullable" => $column->IS_NULLABLE === 'YES',
+                    "primary" => $column->COLUMN_KEY === "PRI",
+                ];
+            },
             $result
         );
     }
@@ -46,13 +65,7 @@ class SQLQuery
     function getColumnsWithTypes(): array
     {
         if (!$this->table_columns) $this->loadColumns();
-        return  array_map(
-            fn (object $column) => (object) [
-                'name' => $column->name,
-                'type' => $column->type,
-            ],
-            $this->table_columns
-        );
+        return $this->table_columns;
     }
 
     function getColumns(): array

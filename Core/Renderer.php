@@ -8,7 +8,10 @@ class Renderer
     {
         $html = '<' . $el . ' ';
 
-        foreach ($attrs as $k => $v) $html .=  $k . '="' . $v . '" ';
+        foreach ($attrs as $k => $v) {
+            if (is_bool($v)) $html .=  $v ? $k . ' ' : '';
+            else $html .=  $k . '="' . $v . '" ';
+        };
 
         $html .= '>';
 
