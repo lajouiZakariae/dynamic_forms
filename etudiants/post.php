@@ -20,7 +20,7 @@ require '../inc/header.php';
         <div class="col-10 px-5 py-4">
             <?php
             /**
-             * I table name is not provided
+             * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
             Form::render(/* table name */)
