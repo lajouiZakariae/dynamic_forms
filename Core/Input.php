@@ -20,4 +20,15 @@ class Input
     {
         return $this->value;
     }
+
+    function isAllowedValue(string|array|null $val): bool
+    {
+        if ($this->getValue() === null) return false;
+
+        $set_values = is_array($this->getValue())
+            ? $this->getValue() :
+            $this->getColumn()->normalizeSetValues($this->getValue());
+
+        return in_array($val, $set_values);
+    }
 }

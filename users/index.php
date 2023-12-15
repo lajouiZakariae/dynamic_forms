@@ -4,20 +4,17 @@ use Core\Table;
 
 require '../config.php';
 require '../functions.php';
-require '../Core/DB.php';
-require '../Core/SQLQuery.php';
-require '../Core/Renderer.php';
-require '../Core/Form.php';
-require '../Core/Table.php';
-require '../Core/Request.php';
+spl_autoload_register(function ($class) {
+    require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
+});
 require '../inc/header.php';
 
 ?>
 
 <div class="container-fluid">
     <div class="row">
-        <div class="col-2"></div>
-        <div class="col-10 px-5 py-4">
+        <!-- <div class="col-2"></div> -->
+        <div class="col px-5 py-4">
             <?php
             /**
              * If table name is not provided

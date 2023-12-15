@@ -38,6 +38,11 @@ class Form extends Renderer
         return self::$mode === FormMode::CREATE;
     }
 
+    private static function isEditPostMode(): bool
+    {
+        return self::$mode === FormMode::EDITPOST;
+    }
+
     private static function getInputType(Column $column)
     {
         $type = 'text';
@@ -92,14 +97,10 @@ class Form extends Renderer
         foreach ($column->getAllowedValues() as $value) {
             $checked = false;
 
-            if (self::isEditMode()) {
-                $set_values = $column->normalizeSetValues(self::$entity[$column->getName()]->getValue());
-                $checked = in_array($value, $set_values);
-            } elseif (self::isCreateMode()) {
-                dump(self::$inputs[$column->getName()]);
-                $set_values = (self::$inputs[$column->getName()]->getValue());
-                $checked = in_array($value, $set_values);
-            }
+            if (self::isEditMode())
+                $checked = self::$entity[$column->getName()]->isAllowedValue($value);
+            elseif (self::isCreateMode())
+                $checked = self::$inputs[$column->getName()]->isAllowedValue($value);
 
 
             $options[] = self::el(
@@ -152,7 +153,7 @@ class Form extends Renderer
                 'value' => self::isEditMode()
                     ? self::$entity[$column->getName()]->getValue() // edit values
                     : (
-                        self::isCreateMode()
+                        self::isCreateMode() || self::isEditPostMode()
                         ? self::$inputs[$column->getName()]->getValue() //input values
                         : false
                     )
@@ -216,16 +217,18 @@ class Form extends Renderer
      */
     private static function handleEditing()
     {
-        $values = [];
+        // $values = [];
 
         // Updating an existing Resource
-        foreach (self::$entity as $key => $_) {
+        foreach (self::$entity as $key => $val) {
             if ($key != self::$primaryKey)
-                $values[$key] = Request::input($key);
+                self::$inputs[$key] = new Input($val->getColumn(), Request::input($key));
         }
 
-        DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
-        redirect('index.php');
+        dump(self::$inputs);
+
+        // DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
+        // redirect('index.php');
     }
 
     private static function handleCreation()
@@ -236,14 +239,14 @@ class Form extends Renderer
             }
         }
 
-        DB::table(self::$table)->insert(self::$inputs);
-
-        redirect('index.php');
+        // DB::table(self::$table)->insert(self::$inputs);
+        // redirect('index.php');
     }
 
     private static function handlePostRequest()
     {
         if (Request::isParam('action', 'edit')) {
+            self::setMode(FormMode::EDITPOST);
             self::handleEditing();
         } elseif (Request::isParam('action', 'create')) {
             self::setMode(FormMode::CREATE);
@@ -318,7 +321,7 @@ class Form extends Renderer
             'form',
             [
                 'action' => "post.php?" . (
-                    !empty(self::$entity)
+                    self::isEditMode() || self::isEditPostMode()
                     ? 'action=edit&' . self::$primaryKey . '=' . self::$entity[self::$primaryKey]->getValue()
                     : 'action=create'
                 ),

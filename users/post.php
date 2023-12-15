@@ -4,15 +4,11 @@ use Core\Form;
 
 require '../config.php';
 require '../functions.php';
-require '../Core/DB.php';
-require '../Core/SQLQuery.php';
-require '../Core/Renderer.php';
-require '../Core/Form.php';
-require '../Core/Table.php';
-require '../Core/Request.php';
+spl_autoload_register(function ($class) {
+    require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
+});
 require '../inc/header.php';
 ?>
-
 <div class="container-fluid">
     <div class="row">
         <div class="col-2">
