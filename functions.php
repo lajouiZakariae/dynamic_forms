@@ -2,17 +2,18 @@
 
 function dump($arr): void
 {
-    if (is_array($arr) && !empty($arr) && is_object(array_values($arr)[0])) {
-        echo '<span class="text-danger">Array (' . count($arr) . ') of objects</span>' . '<br>';
-        foreach ($arr as $o) {
-            echo '<pre>';
-            var_dump($o);
-            echo '</pre>';
-        }
-    }
+    // if (is_array($arr) && !empty($arr) && is_object(array_values($arr)[0])) {
+    //     echo '<span class="text-danger">Array (' . count($arr) . ') of objects</span>' . '<br>';
+    //     foreach ($arr as $o) {
+    //         echo '<pre>';
+    //         var_dump($o);
+    //         echo '</pre>';
+    //     }
+    // } else {
     echo '<pre>';
     var_dump($arr);
     echo '</pre>';
+    // }
 }
 
 function dd($p): void

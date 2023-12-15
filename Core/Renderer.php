@@ -27,4 +27,15 @@ class Renderer
 
         return $html;
     }
+
+
+    protected static function renderError(string $msg): string
+    {
+        return self::el('div', ['class' => 'alert alert-danger',], $msg);
+    }
+
+    protected static function renderWarning(string $msg): string
+    {
+        return self::el('div', ['class' => 'alert alert-warning',], $msg);
+    }
 }

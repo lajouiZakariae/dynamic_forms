@@ -20,26 +20,35 @@ class Request
         return self::method() === "get";
     }
 
+    /**
+     * Existance Checkers
+     */
     static function paramExists(string $name): bool
     {
-        return isset($_GET[$name]);
+        return isset($_GET[$name]) && !empty($_GET[$name]);
     }
 
     static function inputExists(string $name): bool
     {
-        return isset($_POST[$name]);
+        return isset($_POST[$name]) && !empty($_POST[$name]);
     }
 
-    static function param(string $name): ?string
+    /**
+     * Getters
+     */
+    static function param(string $name): string|array|null
     {
         return self::paramExists($name) ? $_GET[$name] : null;
     }
 
-    static function input(string $name): ?string
+    static function input(string $name): string|array|null
     {
-        return self::inputExists($name) ? (!empty($_POST[$name]) ? $_POST[$name] : null) : null;
+        return self::inputExists($name) ? $_POST[$name] : null;
     }
 
+    /**
+     * Value Checkers
+     */
     static function isParam(string $name, $value): bool
     {
         return self::param($name) == $value;

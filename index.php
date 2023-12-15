@@ -15,8 +15,7 @@ require APP_DIR . '/inc/header.php';
 <div class="container">
     <?php
 
-    dump(DB::table('table_name')->getColumnsWithTypes()[5]->isNumeric());
-    dump(DB::table('table_name')->getColumnsWithTypes()[5]);
+    dump(DB::table('table_name')->exists());
 
     ?>
 </div>

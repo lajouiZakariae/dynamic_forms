@@ -71,9 +71,11 @@ class Table extends Renderer
 
     static function html(?string $table = null): string
     {
-        self::$table = $table;
-
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        self::$table = 'empty_wow';
+
+        if (DB::table(self::$table)->missing())
+            return self::renderError('Table Not Found');
 
         self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
 
@@ -92,7 +94,7 @@ class Table extends Renderer
                 'Add'
             ),
             self::el('table', ['class' => 'table text-center'], [
-                self::headers(DB::table(self::$table)->getColumnsWithTypes()), // table html headers
+                self::headers(DB::table(self::$table)->getColumns()), // table html headers
                 self::el('tbody', children: $rows) // table html body 
             ]),
         ]);

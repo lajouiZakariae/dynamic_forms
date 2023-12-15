@@ -73,6 +73,12 @@ class Column
         return $this->primary;
     }
 
+    function normalizeSetValues(string $value): array
+    {
+        if (empty($value)) return [];
+        return explode(',', $value);
+    }
+
     private function extractAllowedValues($column_type): array
     {
         $pos_of_first = strpos($column_type, '(');

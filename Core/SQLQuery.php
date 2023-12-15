@@ -22,19 +22,33 @@ class SQLQuery
     }
 
     /**
-     * Methods for getting information about columns
+     * Methods for getting information about Tables
      */
 
-    private function extractPossibleValues($column_type): array
+    function missing()
     {
-        $pos_of_first = strpos($column_type, '(');
-        $possible_values_as_string = substr($column_type, $pos_of_first + 1, -1); // strlen($column_type));
-        return array_map(
-            fn (string $val) => substr($val, 1, strlen($val) - 2),
-            explode(',', $possible_values_as_string)
-        );
+        $result = DB::table('INFORMATION_SCHEMA.TABLES')
+            ->whereEquals('TABLE_SCHEMA', DBNAME)
+            ->whereEquals('TABLE_NAME', $this->table)
+            ->all(['COUNT(TABLE_NAME) AS table_count']);
+
+        return $result[0]->table_count === 0;
     }
 
+    function exists()
+    {
+        return !$this->missing();
+    }
+
+    function hasColumns()
+    {
+        if (!$this->table_columns) $this->loadColumns();
+        return $this->table_columns;
+    }
+
+    /**
+     * Methods for getting information about Columns
+     */
     private  function loadColumns()
     {
         $result = DB::table('information_schema.COLUMNS')
@@ -47,40 +61,12 @@ class SQLQuery
             fn (object $column): Column => new Column($column),
             $result
         );
-
-        return;
-        $this->table_columns = array_map(
-            function (object $column) {
-                $possible_values = null;
-
-                if (in_array($column->DATA_TYPE, ['enum', 'set'])) {
-                    $possible_values = $this->extractPossibleValues($column->COLUMN_TYPE);
-                }
-
-                return (object)[
-                    "name" => $column->COLUMN_NAME,
-                    "column_type" => $column->COLUMN_TYPE,
-                    "type" => $column->DATA_TYPE,
-                    "max_length" => $column->CHARACTER_MAXIMUM_LENGTH,
-                    "possible_values" => $possible_values,
-                    "nullable" => $column->IS_NULLABLE === 'YES',
-                    "primary" => $column->COLUMN_KEY === "PRI",
-                ];
-            },
-            $result
-        );
-    }
-
-    function getColumnsWithTypes(): array
-    {
-        if (!$this->table_columns) $this->loadColumns();
-        return $this->table_columns;
     }
 
     function getColumns(): array
     {
         if (!$this->table_columns) $this->loadColumns();
-        return array_column($this->table_columns, 'name');
+        return $this->table_columns;
     }
 
     function getPrimaryKeyColumn()
@@ -99,7 +85,6 @@ class SQLQuery
     /**
      * Methods for database queries
      */
-
     function where(string $column, string $operator, mixed $value)
     {
         $this->conditions[] = [$column, $operator, $value];
@@ -156,15 +141,28 @@ class SQLQuery
          */
         $values = [];
 
+        $values[':table_name'] = $this->table;
+
         if ($this->conditions)
             foreach ($this->conditions as [$column,, $value])
                 $values[':condition_' . $column] = $value;
 
         if (!empty($inputs)) {
             foreach ($inputs as $k => $v) {
-                $values[':input_' . $k] = is_array($v) ? implode(",", $v) : $v;
+                if ($v instanceof Input) {
+                    if ($v->getColumn()->isSet() && !empty($v->getValue())) {
+                        $values[':input_' . $k] = implode(",", $v->getValue());
+                    } else {
+                        $values[':input_' . $k] = $v->getValue();
+                    }
+                } else {
+                    $values[':input_' . $k] = is_array($v) ? implode(",", $v) : $v;
+                }
             }
         }
+        dump("---------------");
+        dump($this->sql);
+        dump($values);
 
         $query->execute($values);
 
@@ -181,7 +179,8 @@ class SQLQuery
         $this->sql .= 'SELECT ';
         $this->sql .= ($columns ? $this->stringifiedColumns($columns) : '*');
         $this->sql .=  ' FROM ';
-        $this->sql .= $this->table;
+        // $this->sql .= $this->table;
+        $this->sql .= ':table_name';
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
         if ($this->sort) $this->sql .= ' ORDER BY ' . $this->sort[0] . ' ' . $this->sort[1];
         if ($this->lim) $this->sql .= ' LIMIT ' . $this->lim;
@@ -250,7 +249,6 @@ class SQLQuery
         foreach ($values as $k => $_) $bindableValues[] = ":input_" . $k;
 
         $this->sql .= '(' . $this->stringifiedColumns($bindableValues) . ')';
-        // $this->;
         $this->sql .= ';';
 
         return $this->execute($values);

@@ -2,24 +2,46 @@
 
 namespace Core;
 
-use Stringable;
-
-
 class Form extends Renderer
 {
-    private static ?string $table = null;
+    protected static ?string $table = null;
 
-    private static ?string $primaryKey = null;
+    protected static ?string $primaryKey = null;
 
-    /**
-     * Object to edit
-     */
-    private static ?object $entity = null;
+    protected static bool $editMode = false;
 
-    /**
-     * Object to add
-     */
-    private static array $inputs =  [];
+    /** @var FormMode $mode  */
+    protected static $mode = FormMode::SHOW;
+
+    /** @var Column[] $columns  */
+    protected static $columns = [];
+
+    /** @var Input[] $entity  */
+    private static array $entity = [];
+
+    /** @var Input[] $inputs  */
+    private static $inputs =  [];
+
+
+    private static function setMode(string $formMode): void
+    {
+        self::$mode = $formMode;
+    }
+
+    private static function isEditMode(): bool
+    {
+        return self::$mode === FormMode::EDIT;
+    }
+
+    private static function isCreateMode(): bool
+    {
+        return self::$mode === FormMode::CREATE;
+    }
+
+    private static function isShowMode(): bool
+    {
+        return self::$mode === FormMode::SHOW;
+    }
 
     private static function getInputType(Column $column)
     {
@@ -41,18 +63,18 @@ class Form extends Renderer
 
     private static function selectHtml(Column $column): string
     {
-        $options = [self::el('option', children: 'Choose')];
+        $options = [];
 
         foreach ($column->getAllowedValues() as $value) {
             $options[] = self::el(
                 'option',
                 [
                     'value' => $value,
-                    'selected' => self::$entity
-                        ? self::$entity->{$column->getName()} === $value // edit values
+                    'selected' => self::$editMode
+                        ? self::$entity[$column->getName()]->getValue() === $value // edit values
                         : (
                             !empty(self::$inputs)
-                            ? self::$inputs[$column->getName()] === $value //input values
+                            ? self::$inputs[$column->getName()]->getValue() === $value //input values
                             : false
                         )
                 ],
@@ -71,7 +93,20 @@ class Form extends Renderer
     {
         $options = [];
 
+
         foreach ($column->getAllowedValues() as $value) {
+            $checked = false;
+
+            if (self::isEditMode()) {
+                $set_values = $column->normalizeSetValues(self::$entity[$column->getName()]->getValue());
+                $checked = in_array($value, $set_values);
+            } elseif (self::isCreateMode()) {
+                dump(self::$inputs[$column->getName()]);
+                $set_values = (self::$inputs[$column->getName()]->getValue());
+                $checked = in_array($value, $set_values);
+            }
+
+
             $options[] = self::el(
                 'input',
                 [
@@ -79,13 +114,7 @@ class Form extends Renderer
                     'class' => 'form-checkbox',
                     'name' => $column->getName() . '[]',
                     'value' => $value,
-                    'checked' => self::$entity
-                        ? self::$entity->{$column->getName()} === $value // edit values
-                        : (
-                            !empty(self::$inputs)
-                            ? self::$inputs[$column->getName()] === $value //input values
-                            : false
-                        )
+                    'checked' => $checked
                 ],
                 self_closing: true,
             );
@@ -106,11 +135,11 @@ class Form extends Renderer
             [
                 'class' => 'form-control', 'name' => $column->getName(),
             ],
-            self::$entity
-                ? self::$entity->{$column->getName()} // edit values
+            self::isEditMode()
+                ? self::$entity[$column->getName()]->getValue() // edit values
                 : (
-                    !empty(self::$inputs)
-                    ? self::$inputs[$column->getName()] //input values
+                    self::isCreateMode()
+                    ? self::$inputs[$column->getName()]->getValue() //input values
                     : ''
                 )
         );
@@ -125,11 +154,11 @@ class Form extends Renderer
                 'class' => 'form-control',
                 'name' => $column->getName(),
                 'id' => $column->getName(),
-                'value' => self::$entity
-                    ? self::$entity->{$column->getName()} // edit values
+                'value' => self::isEditMode()
+                    ? self::$entity[$column->getName()]->getValue() // edit values
                     : (
-                        !empty(self::$inputs)
-                        ? self::$inputs[$column->getName()] //input values
+                        self::isCreateMode()
+                        ? self::$inputs[$column->getName()]->getValue() //input values
                         : false
                     )
             ],
@@ -167,20 +196,29 @@ class Form extends Renderer
         ]);
     }
 
+    protected static function getColumnByName(string $key): Column
+    {
+        $filterd = array_filter(self::$columns, fn (Column $column) => $column->getName() === $key);
+
+        return $filterd[array_key_first($filterd)];
+    }
+
     /**
      * Get Entity Information to edit
      */
     private static function fetchEntity(): void
     {
         if (Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey)) {
-            self::$entity = DB::table(self::$table)->find(Request::param(self::$primaryKey));
+            // self::$entity = ;
+            foreach (DB::table(self::$table)->find(Request::param(self::$primaryKey)) as $key => $value) {
+                self::$entity[$key] = new Input(self::getColumnByName($key), $value);
+            }
         }
     }
 
     /**
      * Request Handling
      */
-
     private static function handleEditing()
     {
         $values = [];
@@ -199,9 +237,17 @@ class Form extends Renderer
     private static function handleCreation()
     {
         // Creating a new Resource
-        foreach ($_POST as $k => $v) self::$inputs[$k] = $v;
-        DB::table(self::$table)->insert(self::$inputs);
-        redirect('index.php');
+        // foreach ($_POST as $k => $v) self::$inputs[$k] = new Input(self::getColumnByName($k), $v);
+
+        foreach (self::$columns as $col) {
+            if (!$col->isPrimary()) {
+                self::$inputs[$col->getName()] = new Input($col, Request::input($col->getName()));
+            }
+        }
+
+        // DB::table(self::$table)->insert(self::$inputs);
+
+        // redirect('index.php');
     }
 
     private static function handlePostRequest()
@@ -209,33 +255,53 @@ class Form extends Renderer
         if (Request::isParam('action', 'edit')) {
             self::handleEditing();
         } elseif (Request::isParam('action', 'create')) {
+            self::setMode(FormMode::CREATE);
             self::handleCreation();
         }
+    }
+
+    protected static function hasNoColumns(): bool
+    {
+        return (empty(self::$columns) || (count(self::$columns) === 1 && self::$columns[0]->isPrimary()));
+    }
+    /**
+     * Set Up Values
+     */
+    protected static function load($table): null|string
+    {
+        self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+
+        if (DB::table(self::$table)->missing())
+            return self::renderError('Table Not Found');
+
+        self::$columns = DB::table(self::$table)->getColumns();
+
+        if (self::hasNoColumns())
+            return self::renderWarning('Table ' . self::$table . ' has no column');
+
+        self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
+
+        if (Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey)) self::setMode(FormMode::EDIT);
+
+        if (self::isEditMode()) self::fetchEntity();
+
+        if (Request::isPost()) self::handlePostRequest();
+
+        return null;
     }
 
     /**
      * Form Creation
      */
-
     static function html(?string $table = null): string
     {
-        self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        $response = self::load($table);
 
-        self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
-
-        $is_edit_form = Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey);
-
-        if ($is_edit_form) self::fetchEntity();
-
-        if (Request::isPost()) self::handlePostRequest();
+        if ($response) return $response;
 
         /**
          * Start Rendering
          */
-
-        /** @var Column[] $columns  */
-        $columns = DB::table(self::$table)->getColumnsWithTypes();
-
         $inputs = array_map(
             function (Column $column) {
                 // $column->isPrimary()
@@ -244,7 +310,7 @@ class Form extends Renderer
                 return  $isPrimaryKey // Skip primary key
                     ? '' : self::inputZone($column);
             },
-            $columns
+            self::$columns
         );
 
         $button = self::el(
@@ -261,8 +327,8 @@ class Form extends Renderer
             'form',
             [
                 'action' => "post.php?" . (
-                    self::$entity
-                    ? 'action=edit&' . self::$primaryKey . '=' . self::$entity->{self::$primaryKey}
+                    !empty(self::$entity)
+                    ? 'action=edit&' . self::$primaryKey . '=' . self::$entity[self::$primaryKey]->getValue()
                     : 'action=create'
                 ),
                 'method' => 'post',
