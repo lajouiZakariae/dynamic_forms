@@ -10,9 +10,11 @@ function dump($arr): void
     //         echo '</pre>';
     //     }
     // } else {
+    echo '------------------------------------';
     echo '<pre>';
     var_dump($arr);
     echo '</pre>';
+    echo '------------------------------------';
     // }
 }
 

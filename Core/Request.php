@@ -58,4 +58,20 @@ class Request
     {
         return self::input($name) == $value;
     }
+
+    /**
+     * Value Checkers with Callbacks
+     */
+
+    /**
+     * Execute $callback when $name equals $value
+     * @param string $name Description
+     * @param mixed $value Description
+     * @param callback $callback Description
+     * @return void
+     **/
+    static function whenParam(string $name, $value, callable $callback): void
+    {
+        self::isParam($name, $value) ? $callback() : null;
+    }
 }

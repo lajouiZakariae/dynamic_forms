@@ -4,46 +4,53 @@ namespace Core;
 
 class Form extends Renderer
 {
-    protected static ?string $table = null;
+    protected ?string $table = null;
 
-    protected static ?string $primaryKey = null;
+    protected ?string $primaryKey = null;
 
-    protected static bool $editMode = false;
+    protected string $mode = FormMode::CREATE;
 
-    /** @var FormMode $mode  */
-    protected static $mode = FormMode::SHOW;
+    protected array $columns = [];
 
-    /** @var Column[] $columns  */
-    protected static $columns = [];
+    private array $entity = [];
 
-    /** @var Input[] $entity  */
-    private static array $entity = [];
+    private array $inputs = [];
 
-    /** @var Input[] $inputs  */
-    private static $inputs =  [];
+    protected ?string $error = null;
 
-
-    private static function setMode(string $formMode): void
+    private function __construct(?string $table)
     {
-        self::$mode = $formMode;
+        $this->table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        $response = $this->load();
+        if (!is_null($response)) $this->error = $response;
     }
 
-    private static function isEditMode(): bool
+    private function setMode(string $formMode): void
     {
-        return self::$mode === FormMode::EDIT;
+        $this->mode = $formMode;
     }
 
-    private static function isCreateMode(): bool
+    private function isEditMode(): bool
     {
-        return self::$mode === FormMode::CREATE;
+        return $this->mode === FormMode::EDIT;
     }
 
-    private static function isEditPostMode(): bool
+    private function isCreateMode(): bool
     {
-        return self::$mode === FormMode::EDITPOST;
+        return $this->mode === FormMode::CREATE;
     }
 
-    private static function getInputType(Column $column)
+    private function isPostMode(): bool
+    {
+        return $this->mode === FormMode::POST;
+    }
+
+    private function isUpdateMode(): bool
+    {
+        return $this->mode === FormMode::UPDATE;
+    }
+
+    private function getInputType(Column $column): string
     {
         $type = 'text';
 
@@ -57,24 +64,20 @@ class Form extends Renderer
         return $type;
     }
 
-    /**
-     * Genrating inputs as HTML 
-     */
-
-    private static function selectHtml(Column $column): string
+    private function selectHtml(Column $column): string
     {
         $options = [];
 
         foreach ($column->getAllowedValues() as $value) {
-            $options[] = self::el(
+            $options[] = $this->el(
                 'option',
                 [
                     'value' => $value,
-                    'selected' => self::isEditMode()
-                        ? self::$entity[$column->getName()]->getValue() === $value // edit values
+                    'selected' => $this->isEditMode()
+                        ? $this->entity[$column->getName()]->getValue() === $value // edit values
                         : (
-                            self::isCreateMode()
-                            ? self::$inputs[$column->getName()]->getValue() === $value //input values
+                            ($this->isPostMode() || $this->isUpdateMode())
+                            ? $this->inputs[$column->getName()]->getValue() === $value //input values
                             : false
                         )
                 ],
@@ -82,28 +85,26 @@ class Form extends Renderer
             );
         }
 
-        return self::el(
+        return $this->el(
             'select',
             ['class' => 'form-select', 'name' => $column->getName()],
             $options
         );
     }
 
-    private static function checkBoxesHtml(Column $column): array
+    private function checkBoxesHtml(Column $column): array
     {
         $options = [];
-
 
         foreach ($column->getAllowedValues() as $value) {
             $checked = false;
 
-            if (self::isEditMode())
-                $checked = self::$entity[$column->getName()]->isAllowedValue($value);
-            elseif (self::isCreateMode())
-                $checked = self::$inputs[$column->getName()]->isAllowedValue($value);
+            if ($this->isEditMode())
+                $checked = $this->entity[$column->getName()]->isAllowedValue($value);
+            elseif ($this->isPostMode() || $this->isUpdateMode())
+                $checked = $this->inputs[$column->getName()]->isAllowedValue($value);
 
-
-            $options[] = self::el(
+            $options[] = $this->el(
                 'input',
                 [
                     'type' => 'checkbox',
@@ -114,7 +115,8 @@ class Form extends Renderer
                 ],
                 self_closing: true,
             );
-            $options[] = self::el(
+
+            $options[] = $this->el(
                 'label',
                 [],
                 titleCase($value)
@@ -124,37 +126,37 @@ class Form extends Renderer
         return $options;
     }
 
-    private static function textareaHtml(Column $column): string
+    private function textareaHtml(Column $column): string
     {
-        return self::el(
+        return $this->el(
             'textarea',
             [
                 'class' => 'form-control', 'name' => $column->getName(),
             ],
-            self::isEditMode()
-                ? self::$entity[$column->getName()]->getValue() // edit values
+            $this->isEditMode()
+                ? $this->entity[$column->getName()]->getValue() // edit values
                 : (
-                    self::isCreateMode()
-                    ? self::$inputs[$column->getName()]->getValue() //input values
+                    ($this->isPostMode() || $this->isUpdateMode())
+                    ? $this->inputs[$column->getName()]->getValue() //input values
                     : ''
                 )
         );
     }
 
-    private static function inputHtml(Column $column): string
+    private function inputHtml(Column $column): string
     {
-        return self::el(
+        return $this->el(
             "input",
             [
-                'type' => self::getInputType($column),
+                'type' => $this->getInputType($column),
                 'class' => 'form-control',
                 'name' => $column->getName(),
                 'id' => $column->getName(),
-                'value' => self::isEditMode()
-                    ? self::$entity[$column->getName()]->getValue() // edit values
+                'value' => $this->isEditMode()
+                    ? $this->entity[$column->getName()]->getValue() // edit values
                     : (
-                        self::isCreateMode() || self::isEditPostMode()
-                        ? self::$inputs[$column->getName()]->getValue() //input values
+                        ($this->isPostMode() || $this->isUpdateMode())
+                        ? $this->inputs[$column->getName()]->getValue() //input values
                         : false
                     )
             ],
@@ -162,29 +164,29 @@ class Form extends Renderer
         );
     }
 
-    private static function inputZone(Column $column): string
+    private function inputZone(Column $column): string
     {
         $input = '';
 
         if ($column->isEnum()) {
-            $input = self::selectHtml($column);
+            $input = $this->selectHtml($column);
         } elseif ($column->isSet()) {
-            $input = self::checkBoxesHtml($column);
+            $input = $this->checkBoxesHtml($column);
         } elseif ($column->isText()) {
-            $input = self::textareaHtml($column);
+            $input = $this->textareaHtml($column);
         } else {
-            $input = self::inputHtml($column);
+            $input = $this->inputHtml($column);
         }
 
-        return self::el('div', ['class' => 'row mb-2'], [
-            self::el('div', ['class' => 'col-3'], [
-                self::el(
+        return $this->el('div', ['class' => 'row mb-2'], [
+            $this->el('div', ['class' => 'col-3'], [
+                $this->el(
                     'label',
                     ['for' => $column->getName()],
                     titleCase($column->getName())
                 )
             ]),
-            self::el(
+            $this->el(
                 'div',
                 ['class' => 'col-9'],
                 is_array($input) ? $input : [$input]
@@ -192,137 +194,122 @@ class Form extends Renderer
         ]);
     }
 
-    protected static function getColumnByName(string $key): Column
+    protected function getColumnByName(string $key): Column
     {
-        $filterd = array_filter(self::$columns, fn (Column $column) => $column->getName() === $key);
+        $filtered = array_filter($this->columns, fn (Column $column) => $column->getName() === $key);
 
-        return $filterd[array_key_first($filterd)];
+        return $filtered[array_key_first($filtered)];
     }
 
-    /**
-     * Get Entity Information to edit
-     */
-    private static function fetchEntity(): void
+    protected function fetchEntity(): void
     {
-        if (Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey)) {
-            // self::$entity = ;
-            foreach (DB::table(self::$table)->find(Request::param(self::$primaryKey)) as $key => $value) {
-                self::$entity[$key] = new Input(self::getColumnByName($key), $value);
-            }
+        foreach (DB::table($this->table)->find(Request::param($this->primaryKey)) as $key => $value) {
+            $this->entity[$key] = new Input($this->getColumnByName($key), $value);
         }
     }
 
-    /**
-     * Request Handling
-     */
-    private static function handleEditing()
+    protected function populateInputs(): void
     {
-        // $values = [];
-
-        // Updating an existing Resource
-        foreach (self::$entity as $key => $val) {
-            if ($key != self::$primaryKey)
-                self::$inputs[$key] = new Input($val->getColumn(), Request::input($key));
-        }
-
-        dump(self::$inputs);
-
-        // DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
-        // redirect('index.php');
-    }
-
-    private static function handleCreation()
-    {
-        foreach (self::$columns as $col) {
+        foreach ($this->columns as $col) {
             if (!$col->isPrimary()) {
-                self::$inputs[$col->getName()] = new Input($col, Request::input($col->getName()));
+                $this->inputs[$col->getName()] = new Input($col, Request::input($col->getName()));
             }
         }
+    }
 
-        // DB::table(self::$table)->insert(self::$inputs);
+    protected function handleEditing()
+    {
+        $this->populateInputs();
+
+        /**
+         * Updating resource in database
+         */
+
+        // DB::table($this->table)->whereEquals($this->primaryKey, Request::param($this->primaryKey))->update($values);
         // redirect('index.php');
     }
 
-    private static function handlePostRequest()
+    private function handleCreation()
     {
-        if (Request::isParam('action', 'edit')) {
-            self::setMode(FormMode::EDITPOST);
-            self::handleEditing();
-        } elseif (Request::isParam('action', 'create')) {
-            self::setMode(FormMode::CREATE);
-            self::handleCreation();
-        }
+        $this->populateInputs();
+        /**
+         * Inserting to database
+         */
+
+        // DB::table($this->table)->insert($this->inputs);
+        // redirect('index.php');
     }
 
-    protected static function hasNoColumns(): bool
+    private function handlePostRequest()
     {
-        return (empty(self::$columns) || (count(self::$columns) === 1 && self::$columns[0]->isPrimary()));
+        Request::whenParam('action', 'edit', function () {
+            $this->setMode(FormMode::UPDATE);
+            $this->handleEditing();
+        });
+
+        Request::whenParam('action', 'create', function () {
+            $this->setMode(FormMode::POST);
+            $this->handleCreation();
+        });
     }
-    /**
-     * Set Up Values
-     */
-    protected static function load($table): null|string
+
+    protected function hasNoColumns(): bool
     {
-        self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        return empty($this->columns)
+            || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
+    }
 
-        if (DB::table(self::$table)->missing())
-            return self::renderError('Table Not Found');
+    protected function load(): ?string
+    {
+        if (DB::table($this->table)->missing())
+            return $this->renderError('Table Not Found');
 
-        self::$columns = DB::table(self::$table)->getColumns();
+        $this->columns = DB::table($this->table)->getColumns();
 
-        if (self::hasNoColumns())
-            return self::renderWarning('Table ' . self::$table . ' has no column');
+        if ($this->hasNoColumns())
+            return $this->renderWarning('Table ' . $this->table . ' has no column');
 
-        self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
+        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
 
-        if (Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey)) self::setMode(FormMode::EDIT);
+        if (Request::isPost()) $this->handlePostRequest();
 
-        if (self::isEditMode()) self::fetchEntity();
+        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey)) $this->setMode(FormMode::EDIT);
 
-        if (Request::isPost()) self::handlePostRequest();
+        if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
 
         return null;
     }
 
-    /**
-     * Form Creation
-     */
-    static function html(?string $table = null): string
+    public function _html(): string
     {
-        $msg = self::load($table);
+        if ($this->error) return $this->error;
 
-        if ($msg) return $msg;
-
-        /**
-         * Start Rendering
-         */
         $inputs = array_map(
             function (Column $column) {
-                // $column->isPrimary()
-                $isPrimaryKey = $column->getName() === self::$primaryKey;
+                $isPrimaryKey = $column->getName() === $this->primaryKey;
 
-                return  $isPrimaryKey // Skip primary key
-                    ? '' : self::inputZone($column);
+                return  $isPrimaryKey
+                    ? '' : $this->inputZone($column);
             },
-            self::$columns
+            $this->columns
         );
 
-        $button = self::el(
+        $button = $this->el(
             'div',
             ['class' => 'row'],
-            self::el(
+            $this->el(
                 'div',
                 ['class' => 'col-9 ms-auto'],
-                self::el('button', ['type' => 'submit', 'class' => 'btn btn-primary w-100'], 'Save')
+                $this->el('button', ['type' => 'submit', 'class' => 'btn btn-primary w-100'], 'Save')
             )
         );
 
-        $html = self::el(
+        $html = $this->el(
             'form',
             [
                 'action' => "post.php?" . (
-                    self::isEditMode() || self::isEditPostMode()
-                    ? 'action=edit&' . self::$primaryKey . '=' . self::$entity[self::$primaryKey]->getValue()
+                    $this->isEditMode() || $this->isUpdateMode()
+                    ? 'action=edit&' . $this->primaryKey . '=' . $this->entity[$this->primaryKey]->getValue()
                     : 'action=create'
                 ),
                 'method' => 'post',
@@ -334,13 +321,19 @@ class Form extends Renderer
         return $html;
     }
 
-    static function render(?string $table = null): void
+    public static function html(?string $table = null): string
     {
-        echo self::html($table);
+        return (new self($table))->_html();
     }
 
-    static function writeFile(?string $table = null, string $filename = 'draft.php'): void
+    public static function render(?string $table = null): void
     {
-        file_put_contents($filename, self::html($table));
+        echo (new self($table))->_html();
+    }
+
+    public static function writeFile(?string $table, string $filename = 'draft.php'): int|null
+    {
+        $content = (new self($table))->_html();
+        return file_put_contents($filename, $content);
     }
 }

@@ -2,117 +2,142 @@
 
 namespace Core;
 
-use EmptyIterator;
-
 class Table extends Renderer
 {
-    private static ?string $primaryKey = null;
+    protected string $table;
 
-    private static ?string $table = null;
+    protected static $instances = [];
 
-    /** @var Column[] $columns  */
-    protected static $columns = [];
+    protected ?string $primaryKey = null;
 
-    private static function icon(string $name, string $color)
+    /** @var Column[] $columns */
+    protected $columns = [];
+
+    protected ?string $error = null;
+
+    private function __construct(string $table)
     {
-        return self::el('i', [
+        $this->table = $table;
+        $this->load();
+    }
+
+    private function icon(string $name, string $color): string
+    {
+        return $this->el('i', [
             'class' => 'fas fa-' . $name . ' text-light bg-' . $color . ' d-flex justify-content-center align-items-center',
             'style' => 'border-radius:50%; width:32px;height:32px;cursor:pointer;'
         ]);
     }
 
-    private static function destroyItem()
+    private function destroyItem(): void
     {
-        DB::table(self::$table)
-            ->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))
+        DB::table($this->table)
+            ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
             ->destroy();
     }
 
-    /**
-     * @param Column[] $columns 
-     * @return string
-     **/
-    private static function headers($columns): string
+    private function headers($columns): string
     {
-        $html = '  <thead>';
-        $html .= '      <tr>';
+        $headers =  array_map(
+            fn (Column $column) => $this->el('th', children: titleCase($column->getName())),
+            $columns,
+        );
 
-        foreach ($columns as  $column) $html .= ' <th>' . titleCase($column->getName()) . '</th>';
+        $headers[] = $this->el('th', ['colspan' => 2], 'Actions');
 
-        $html .= '          <th colspan="2">Actions</th>';
-        $html .= '      </tr>';
-        $html .= '  </thead>';
-        return $html;
+        return $this->el(
+            'thead',
+            children: $this->el("tr", children: $headers)
+        );
+
+        // $html = '  <thead>';
+        // $html .= '      <tr>';
+
+        // foreach ($columns as $column) {
+        //     $html .= ' <th>' . titleCase($column->getName()) . '</th>';
+        // }
+
+        // $html .= '          <th colspan="2">Actions</th>';
+        // $html .= '      </tr>';
+        // $html .= '  </thead>';
+        // return $html;
     }
 
-    private static function row(object $item): string
+    private function row(object $item): string
     {
         $table_data = [];
 
-        foreach ($item as  $value) {
-            $table_data[] = self::el('td', children: $value);
+        foreach ($item as $value) {
+            $table_data[] = $this->el('td', children: $value);
         }
 
-        $table_data[] = self::el(
+        $table_data[] = $this->el(
             'td',
-            children: self::el(
+            children: $this->el(
                 'a',
-                ['href' => 'index.php?action=delete&' . self::$primaryKey . '=' . $item->{self::$primaryKey}],
-                self::icon(name: 'trash', color: 'danger'),
+                ['href' => 'index.php?action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
+                $this->icon(name: 'trash', color: 'danger'),
             )
         );
 
-        $table_data[] = self::el(
+        $table_data[] = $this->el(
             'td',
-            children: self::el(
+            children: $this->el(
                 'a',
-                ['href' => 'post.php?action=edit&' . self::$primaryKey . '=' . $item->{self::$primaryKey}],
-                self::icon(name: 'pencil', color: 'primary'),
+                ['href' => 'post.php?action=edit&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
+                $this->icon(name: 'pencil', color: 'primary'),
             )
         );
 
-        return self::el('tr', children: $table_data);
+        return $this->el('tr', children: $table_data);
     }
 
-    protected static function hasNoColumns(): bool
+    protected function hasNoColumns(): bool
     {
-        return (empty(self::$columns) || (count(self::$columns) === 1 && self::$columns[0]->isPrimary()));
+        return (empty($this->columns) || (count($this->columns) === 1 && $this->columns[0]->isPrimary()));
     }
 
-    static function html(?string $table = null): string
+    protected function load()
     {
-        self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        if (DB::table($this->table)->missing())
+            return $this->error = $this->renderError('Table ' . $this->table . ' Not Found');
 
-        if (DB::table(self::$table)->missing()) return self::renderError('Table Not Found');
+        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
 
-        self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
+        if (Request::param('action') === 'delete' && Request::paramExists($this->primaryKey)) {
+            $this->destroyItem();
+        }
 
-        if (Request::param('action') === 'delete' && Request::paramExists(self::$primaryKey)) {
-            self::destroyItem(self::$table);
-        };
+        $this->columns = DB::table($this->table)->getColumns();
 
-        self::$columns = DB::table(self::$table)->getColumns();
+        if ($this->hasNoColumns())
+            return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
+    }
 
-        if (self::hasNoColumns())
-            return self::renderWarning('Table ' . self::$table . ' has no column');
+    public function _html(): string
+    {
+        if ($this->error) return $this->error;
 
-        $rows = array_map(fn ($item) => self::row($item), DB::table(self::$table)->all());
+        $rows = array_map(fn ($item) => $this->row($item), DB::table($this->table)->all());
 
-        return self::el('div', children: [
-            self::el(
+        return $this->el('div', children: [
+            $this->el(
                 'a',
                 [
                     'class' => 'btn btn-primary', 'href' => 'post.php'
                 ],
                 'Add'
             ),
-            self::el('table', ['class' => 'table text-center'], [
-                self::headers(DB::table(self::$table)->getColumns()), // table html headers
-                self::el(
+
+            $this->el('table', ['class' => 'table text-center'], [
+
+                $this->headers(DB::table($this->table)->getColumns()), // table html headers
+
+                $this->el(
                     'tbody',
                     children: empty($rows)
-                        ? self::el('tr', children: [
-                            self::el('td', ['colspan' => count(self::$columns) + 2], self::renderWarning('Empty Table'))
+                        ? $this->el('tr', children: [
+                            $this->el('td', ['colspan' => count($this->columns) + 2], $this->renderWarning('Empty Table'))
                         ])
                         : $rows
                 ) // table html body 
@@ -120,13 +145,32 @@ class Table extends Renderer
         ]);
     }
 
-    static function writeFile(?string $table = null, string $filename = 'draft.php'): void
+    public static function instance(?string $table): Table
     {
-        file_put_contents($filename, self::html($table));
+        if (is_null($table)) $table =  scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+
+        if (array_key_exists($table, self::$instances)) return self::$instances[$table];
+
+        $instance = new self($table);
+
+        self::$instances[$table] = $instance;
+
+        return $instance;
     }
 
-    static function render(?string $table = null): void
+    public static function html(?string $table = null): string
     {
-        echo self::html($table);
+        return self::instance($table)->_html();
+    }
+
+    public static function writeFile(?string $table = null, string $filename = 'draft.php'): int|false
+    {
+        $content =  self::instance($table)->_html();
+        return file_put_contents($filename, $content);
+    }
+
+    public static function render(?string $table = null): void
+    {
+        echo self::instance($table)->_html();
     }
 }

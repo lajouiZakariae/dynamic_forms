@@ -4,7 +4,7 @@ namespace Core;
 
 class Renderer
 {
-    protected static function el(string $el, array $attrs = [], array|string $children = null, bool $self_closing = false): string
+    protected  function el(string $el, array $attrs = [], array|string $children = null, bool $self_closing = false): string
     {
         $html = '<' . $el . ' ';
 
@@ -29,13 +29,13 @@ class Renderer
     }
 
 
-    protected static function renderError(string $msg): string
+    protected function renderError(string $msg): string
     {
-        return self::el('div', ['class' => 'alert alert-danger',], $msg);
+        return $this->el('div', ['class' => 'alert alert-danger',], $msg);
     }
 
-    protected static function renderWarning(string $msg): string
+    protected function renderWarning(string $msg): string
     {
-        return self::el('div', ['class' => 'alert alert-warning',], $msg);
+        return $this->el('div', ['class' => 'alert alert-warning',], $msg);
     }
 }

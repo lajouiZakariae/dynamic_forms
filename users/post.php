@@ -19,7 +19,7 @@ require '../inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            Form::render(/* table name */)
+            Form::render('empty'/* table name */)
             ?>
         </div>
     </div>

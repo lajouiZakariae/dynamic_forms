@@ -20,7 +20,8 @@ require '../inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            Table::render(/* table name */) ?>
+            Table::render('empty'/* table name */);
+            ?>
         </div>
     </div>
 </div>
