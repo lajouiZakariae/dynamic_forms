@@ -95,7 +95,7 @@ class Table extends Renderer
         self::$columns = DB::table(self::$table)->getColumns();
 
         if (self::hasNoColumns())
-            return self::renderWarning('Form ' . self::$table . ' has no column');
+            return self::renderWarning('Table ' . self::$table . ' has no column');
 
         $rows = array_map(fn ($item) => self::row($item), DB::table(self::$table)->all());
 

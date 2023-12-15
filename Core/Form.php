@@ -293,9 +293,9 @@ class Form extends Renderer
      */
     static function html(?string $table = null): string
     {
-        $response = self::load($table);
+        $msg = self::load($table);
 
-        if ($response) return $response;
+        if ($msg) return $msg;
 
         /**
          * Start Rendering
