@@ -38,11 +38,6 @@ class Form extends Renderer
         return self::$mode === FormMode::CREATE;
     }
 
-    private static function isShowMode(): bool
-    {
-        return self::$mode === FormMode::SHOW;
-    }
-
     private static function getInputType(Column $column)
     {
         $type = 'text';
@@ -70,10 +65,10 @@ class Form extends Renderer
                 'option',
                 [
                     'value' => $value,
-                    'selected' => self::$editMode
+                    'selected' => self::isEditMode()
                         ? self::$entity[$column->getName()]->getValue() === $value // edit values
                         : (
-                            !empty(self::$inputs)
+                            self::isCreateMode()
                             ? self::$inputs[$column->getName()]->getValue() === $value //input values
                             : false
                         )
@@ -231,7 +226,6 @@ class Form extends Renderer
 
         DB::table(self::$table)->whereEquals(self::$primaryKey, Request::param(self::$primaryKey))->update($values);
         redirect('index.php');
-        // self::$entity = DB::table(self::$table)->find(Request::param(self::$primaryKey));
     }
 
     private static function handleCreation()
@@ -267,7 +261,6 @@ class Form extends Renderer
     protected static function load($table): null|string
     {
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
-        self::$table = 'empty';
 
         if (DB::table(self::$table)->missing())
             return self::renderError('Table Not Found');

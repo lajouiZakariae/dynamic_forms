@@ -82,7 +82,6 @@ class Table extends Renderer
     static function html(?string $table = null): string
     {
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
-        self::$table = 'empty';
 
         if (DB::table(self::$table)->missing()) return self::renderError('Table Not Found');
 
