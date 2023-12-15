@@ -4,7 +4,7 @@ namespace Core;
 
 class Renderer
 {
-    static function el(string $el, array $attrs = [], array|string $children = null, bool $self_closing = false): string
+    protected static function el(string $el, array $attrs = [], array|string $children = null, bool $self_closing = false): string
     {
         $html = '<' . $el . ' ';
 

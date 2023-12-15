@@ -37,7 +37,7 @@ class Request
 
     static function input(string $name): ?string
     {
-        return self::inputExists($name) ? $_POST[$name] : null;
+        return self::inputExists($name) ? (!empty($_POST[$name]) ? $_POST[$name] : null) : null;
     }
 
     static function isParam(string $name, $value): bool

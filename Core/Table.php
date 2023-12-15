@@ -4,13 +4,16 @@ namespace Core;
 
 class Table extends Renderer
 {
-    static ?string $primaryKey = null;
+    private static ?string $primaryKey = null;
 
-    static ?string $table = null;
+    private static ?string $table = null;
 
     private static function icon(string $name, string $color)
     {
-        return '<i class="fas fa-' . $name . ' text-light bg-' . $color . ' d-flex justify-content-center align-items-center " style="border-radius:50%; width:32px;height:32px;cursor:pointer;" ></i>';
+        return self::el('i', [
+            'class' => 'fas fa-' . $name . ' text-light bg-' . $color . ' d-flex justify-content-center align-items-center',
+            'style' => 'border-radius:50%; width:32px;height:32px;cursor:pointer;'
+        ]);
     }
 
     private static function destroyItem()
@@ -20,12 +23,16 @@ class Table extends Renderer
             ->destroy();
     }
 
-    private static function headers(array $columns): string
+    /**
+     * @param Column[] $columns 
+     * @return string
+     **/
+    private static function headers($columns): string
     {
         $html = '  <thead>';
         $html .= '      <tr>';
 
-        foreach ($columns as  $column) $html .= ' <th>' . titleCase($column) . '</th>';
+        foreach ($columns as  $column) $html .= ' <th>' . titleCase($column->getName()) . '</th>';
 
         $html .= '          <th colspan="2">Actions</th>';
         $html .= '      </tr>';
@@ -85,10 +92,15 @@ class Table extends Renderer
                 'Add'
             ),
             self::el('table', ['class' => 'table text-center'], [
-                self::headers(DB::table(self::$table)->getColumns()), // table html headers
+                self::headers(DB::table(self::$table)->getColumnsWithTypes()), // table html headers
                 self::el('tbody', children: $rows) // table html body 
             ]),
         ]);
+    }
+
+    static function writeFile(?string $table = null, string $filename = 'draft.php'): void
+    {
+        file_put_contents($filename, self::html($table));
     }
 
     static function render(?string $table = null): void

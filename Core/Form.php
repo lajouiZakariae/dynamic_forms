@@ -21,53 +21,38 @@ class Form extends Renderer
      */
     private static array $inputs =  [];
 
-    private static array $numeric_types = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'bit', 'float', 'double', 'decimal'];
-
-    private static array $big_text_types = ['tinytext',  'mediumtext', 'text', 'longtext'];
-
-
-
-    private static function isNumeric($type): bool
+    private static function getInputType(Column $column)
     {
-        return in_array($type, self::$numeric_types);
+        $type = 'text';
+
+        if ($column->getName() === 'email') $type = 'email';
+        if ($column->getName() === 'password') $type = 'password';
+
+        if ($column->getType() === 'date') $type = 'date';
+        elseif ($column->getType() === 'time') $type = 'time';
+        elseif ($column->getType() === 'datetime') $type = 'datetime-local';
+
+        return $type;
     }
 
-    private static function isLongTextType($type): bool
+    /**
+     * Genrating inputs as HTML 
+     */
+
+    private static function selectHtml(Column $column): string
     {
-        return in_array($type, self::$big_text_types);
-    }
-
-    private static function getInputType($column)
-    {
-        if ($column->name === 'email') return 'email';
-        if ($column->name === 'password') return 'password';
-
-        return match ($column->type) {
-            self::isLongTextType($column->type) => 'text',
-            'date' => 'date',
-            'time', 'timestamp' => 'time',
-            'datetime' => 'datetime-local',
-            'varchar', 'char', self::isNumeric($column->type) => "text",
-            default => 'text'
-        };
-    }
-
-    private static function selectHtml(object $column): string
-    {
-        dump($column);
-
         $options = [self::el('option', children: 'Choose')];
 
-        foreach ($column->possible_values as $value) {
+        foreach ($column->getAllowedValues() as $value) {
             $options[] = self::el(
                 'option',
                 [
                     'value' => $value,
                     'selected' => self::$entity
-                        ? self::$entity->{$column->name} === $value // edit values
+                        ? self::$entity->{$column->getName()} === $value // edit values
                         : (
                             !empty(self::$inputs)
-                            ? self::$inputs[$column->name] === $value //input values
+                            ? self::$inputs[$column->getName()] === $value //input values
                             : false
                         )
                 ],
@@ -77,75 +62,108 @@ class Form extends Renderer
 
         return self::el(
             'select',
-            ['class' => 'form-select', 'name' => $column->name],
+            ['class' => 'form-select', 'name' => $column->getName()],
             $options
         );
     }
 
-    private static function textareaHtml(object $column): string
+    private static function checkBoxesHtml(Column $column): array
+    {
+        $options = [];
+
+        foreach ($column->getAllowedValues() as $value) {
+            $options[] = self::el(
+                'input',
+                [
+                    'type' => 'checkbox',
+                    'class' => 'form-checkbox',
+                    'name' => $column->getName() . '[]',
+                    'value' => $value,
+                    'checked' => self::$entity
+                        ? self::$entity->{$column->getName()} === $value // edit values
+                        : (
+                            !empty(self::$inputs)
+                            ? self::$inputs[$column->getName()] === $value //input values
+                            : false
+                        )
+                ],
+                self_closing: true,
+            );
+            $options[] = self::el(
+                'label',
+                [],
+                titleCase($value)
+            );
+        }
+
+        return $options;
+    }
+
+    private static function textareaHtml(Column $column): string
     {
         return self::el(
             'textarea',
             [
-                'class' => 'form-control', 'name' => $column->name,
+                'class' => 'form-control', 'name' => $column->getName(),
             ],
             self::$entity
-                ? self::$entity->{$column->name} // edit values
+                ? self::$entity->{$column->getName()} // edit values
                 : (
                     !empty(self::$inputs)
-                    ? self::$inputs[$column->name] //input values
+                    ? self::$inputs[$column->getName()] //input values
                     : ''
                 )
         );
     }
 
-    private static function inputHtml(object $column): string
+    private static function inputHtml(Column $column): string
     {
         return self::el(
             "input",
             [
                 'type' => self::getInputType($column),
                 'class' => 'form-control',
-                'name' => $column->name,
-                'id' => $column->name,
+                'name' => $column->getName(),
+                'id' => $column->getName(),
                 'value' => self::$entity
-                    ? self::$entity->{$column->name} // edit values
+                    ? self::$entity->{$column->getName()} // edit values
                     : (
                         !empty(self::$inputs)
-                        ? self::$inputs[$column->name] //input values
-                        : ''
+                        ? self::$inputs[$column->getName()] //input values
+                        : false
                     )
             ],
             self_closing: true
         );
     }
 
-    private static function inputZone($column): string
+    private static function inputZone(Column $column): string
     {
-        dump($column);
-
         $input = '';
 
-        if ($column->type === "enum") {
+        if ($column->isEnum()) {
             $input = self::selectHtml($column);
-        } elseif (self::isLongTextType($column->type)) {
+        } elseif ($column->isSet()) {
+            $input = self::checkBoxesHtml($column);
+        } elseif ($column->isText()) {
             $input = self::textareaHtml($column);
         } else {
             $input = self::inputHtml($column);
         }
 
-
         return self::el('div', ['class' => 'row mb-2'], [
             self::el('div', ['class' => 'col-3'], [
                 self::el(
                     'label',
-                    ['for' => $column->name],
-                    titleCase($column->name)
+                    ['for' => $column->getName()],
+                    titleCase($column->getName())
                 )
             ]),
-            self::el('div', ['class' => 'col-9'], [
-                $input
-            ]),
+            self::el(
+                'div',
+                ['class' => 'col-9'],
+                is_array($input) ? $input : [$input]
+            ),
         ]);
     }
 
@@ -159,9 +177,12 @@ class Form extends Renderer
         }
     }
 
+    /**
+     * Request Handling
+     */
+
     private static function handleEditing()
     {
-
         $values = [];
 
         // Updating an existing Resource
@@ -179,7 +200,6 @@ class Form extends Renderer
     {
         // Creating a new Resource
         foreach ($_POST as $k => $v) self::$inputs[$k] = $v;
-
         DB::table(self::$table)->insert(self::$inputs);
         redirect('index.php');
     }
@@ -193,13 +213,19 @@ class Form extends Renderer
         }
     }
 
+    /**
+     * Form Creation
+     */
+
     static function html(?string $table = null): string
     {
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
 
         self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
 
-        self::fetchEntity();
+        $is_edit_form = Request::isParam('action', 'edit') && Request::paramExists(self::$primaryKey);
+
+        if ($is_edit_form) self::fetchEntity();
 
         if (Request::isPost()) self::handlePostRequest();
 
@@ -207,11 +233,13 @@ class Form extends Renderer
          * Start Rendering
          */
 
+        /** @var Column[] $columns  */
         $columns = DB::table(self::$table)->getColumnsWithTypes();
 
         $inputs = array_map(
-            function ($column) {
-                $isPrimaryKey = $column->name === self::$primaryKey;
+            function (Column $column) {
+                // $column->isPrimary()
+                $isPrimaryKey = $column->getName() === self::$primaryKey;
 
                 return  $isPrimaryKey // Skip primary key
                     ? '' : self::inputZone($column);
@@ -253,7 +281,6 @@ class Form extends Renderer
 
     static function writeFile(?string $table = null, string $filename = 'draft.php'): void
     {
-        $content = self::html($table);
-        file_put_contents($filename, $content);
+        file_put_contents($filename, self::html($table));
     }
 }

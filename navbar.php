@@ -5,7 +5,6 @@ use Core\DB;
 $tables = DB::table("information_schema.TABLES")
     ->whereEquals("TABLE_SCHEMA", DBNAME)
     ->all(["TABLE_NAME"]);
-
 $tables_names = array_column($tables, 'TABLE_NAME');
 ?>
 
@@ -22,15 +21,13 @@ $tables_names = array_column($tables, 'TABLE_NAME');
                 <?php foreach ($tables_names as $name) : ?>
                     <li class="nav-item dropdown">
 
-                        <a class="nav-link dropdown-toggle <?php echo isCurrentPage($name) ? 'active' : '' ?>" <?php echo isCurrentPage($name) ? 'aria-current="page"' : '' ?> href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-
-                            <?php echo titleCase($name) ?>
-
+                        <a class="nav-link dropdown-toggle <?php echo isCurrentPage($name) ? 'active' : ''; ?>" <?php echo isCurrentPage($name) ? 'aria-current="page"' : ''; ?> href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <?php echo titleCase($name); ?>
                         </a>
 
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="<?php echo '/' . $name . '/' ?>">Index</a></li>
-                            <li><a class="dropdown-item" href="<?php echo '/' . $name . '/post.php?action=create' ?>">Create</a></li>
+                            <li><a class="dropdown-item" href="<?php echo '/' . $name . '/'; ?>">Index</a></li>
+                            <li><a class="dropdown-item" href="<?php echo '/' . $name . '/post.php?action=create'; ?>">Create</a></li>
                         </ul>
                     </li>
                 <?php endforeach; ?>

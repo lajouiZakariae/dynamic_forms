@@ -4,7 +4,8 @@ namespace Core;
 
 class SQLQuery
 {
-    private ?array $table_columns = null;
+    /** @var Column[] $table_columns  */
+    protected $table_columns = null;
 
     private string $sql = '';
 
@@ -24,28 +25,36 @@ class SQLQuery
      * Methods for getting information about columns
      */
 
-    private function extractEnumValues($column_type): array
+    private function extractPossibleValues($column_type): array
     {
+        $pos_of_first = strpos($column_type, '(');
+        $possible_values_as_string = substr($column_type, $pos_of_first + 1, -1); // strlen($column_type));
         return array_map(
             fn (string $val) => substr($val, 1, strlen($val) - 2),
-            explode(',', substr($column_type, 5, strlen($column_type) - 6))
+            explode(',', $possible_values_as_string)
         );
     }
 
     private  function loadColumns()
     {
-        $result = DB::table('information_schema.`COLUMNS`')
+        $result = DB::table('information_schema.COLUMNS')
             ->whereEquals('TABLE_SCHEMA', DBNAME)
             ->whereEquals('TABLE_NAME', $this->table)
             ->sortyBy('ORDINAL_POSITION')
             ->all(['COLUMN_NAME', 'DATA_TYPE', 'COLUMN_TYPE', 'COLUMN_KEY', 'CHARACTER_MAXIMUM_LENGTH', 'IS_NULLABLE']);
 
         $this->table_columns = array_map(
+            fn (object $column): Column => new Column($column),
+            $result
+        );
+
+        return;
+        $this->table_columns = array_map(
             function (object $column) {
                 $possible_values = null;
 
-                if ($column->DATA_TYPE === 'enum') {
-                    $possible_values = $this->extractEnumValues($column->COLUMN_TYPE);
+                if (in_array($column->DATA_TYPE, ['enum', 'set'])) {
+                    $possible_values = $this->extractPossibleValues($column->COLUMN_TYPE);
                 }
 
                 return (object)[
@@ -77,7 +86,7 @@ class SQLQuery
     function getPrimaryKeyColumn()
     {
         if ($this->table_columns) {
-            return array_filter($this->table_columns, fn ($column) => $column->primary)[0]->name;
+            return array_filter($this->table_columns, fn ($column) => $column->primary)[0]->getName();
         }
         return DB::table("information_schema.`COLUMNS`")
             ->whereEquals('TABLE_SCHEMA', DBNAME)
@@ -152,8 +161,9 @@ class SQLQuery
                 $values[':condition_' . $column] = $value;
 
         if (!empty($inputs)) {
-            foreach ($inputs as $k => $v)
-                $values[':input_' . $k] = $v;
+            foreach ($inputs as $k => $v) {
+                $values[':input_' . $k] = is_array($v) ? implode(",", $v) : $v;
+            }
         }
 
         $query->execute($values);
@@ -219,7 +229,6 @@ class SQLQuery
         return implode(' , ', $setters_as_strings);
     }
 
-
     function update($values)
     {
         $this->sql .= 'UPDATE ';
@@ -237,11 +246,13 @@ class SQLQuery
         $this->sql .= $this->table;
         $this->sql .= '(' . $this->stringifiedColumns(array_keys($values)) . ')';
         $this->sql .= ' VALUES ';
+
         foreach ($values as $k => $_) $bindableValues[] = ":input_" . $k;
 
         $this->sql .= '(' . $this->stringifiedColumns($bindableValues) . ')';
         // $this->;
         $this->sql .= ';';
+
         return $this->execute($values);
     }
 }

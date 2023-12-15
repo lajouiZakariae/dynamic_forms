@@ -1,17 +1,25 @@
 <?php
 
-use Core\Form;
+use Core\DB;
 
 require 'config.php';
 require APP_DIR . '/functions.php';
-require APP_DIR . '/Core/DB.php';
-require APP_DIR . '/Core/SQLQuery.php';
-require APP_DIR . '/Core/Renderer.php';
-require APP_DIR . '/Core/Form.php';
-require APP_DIR . '/Core/Table.php';
-require APP_DIR . '/Core/Request.php';
+spl_autoload_register(function ($class) {
+    require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
+});
 require APP_DIR . '/inc/header.php';
+
 ?>
 
-<?php include APP_DIR . "/inc/footer.php"; ?>
 
+<div class="container">
+    <?php
+
+    dump(DB::table('table_name')->getColumnsWithTypes()[5]->isNumeric());
+    dump(DB::table('table_name')->getColumnsWithTypes()[5]);
+
+    ?>
+</div>
+
+
+<?php include APP_DIR . "/inc/footer.php"; ?>

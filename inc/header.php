@@ -11,4 +11,5 @@
 
 <body>
 
-    <?php include APP_DIR . "/navbar.php"; ?>
+    <?php // include(APP_DIR . "/navbar.php"); 
+    ?>
