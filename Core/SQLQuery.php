@@ -21,6 +21,17 @@ class SQLQuery
     ) {
     }
 
+    function getTableName(): string
+    {
+        if (str_contains($this->table, '.')) {
+            $table_name = explode('.', $this->table);
+            $table_name[1] = '`' . $table_name[1] . '`';
+            return implode('.', $table_name);
+        } else {
+            return $this->table = '`' . $this->table . '`';
+        }
+    }
+
     /**
      * Methods for getting information about Tables
      */
@@ -74,7 +85,7 @@ class SQLQuery
         if ($this->table_columns) {
             return array_filter($this->table_columns, fn ($column) => $column->primary)[0]->getName();
         }
-        return DB::table("information_schema.`COLUMNS`")
+        return DB::table("information_schema.COLUMNS")
             ->whereEquals('TABLE_SCHEMA', DBNAME)
             ->whereEquals('TABLE_NAME', $this->table)
             ->whereEquals('COLUMN_KEY', 'PRI')
@@ -141,7 +152,7 @@ class SQLQuery
          */
         $values = [];
 
-        $values[':table_name'] = $this->table;
+        // $values[':table_name'] = $this->table;
 
         if ($this->conditions)
             foreach ($this->conditions as [$column,, $value])
@@ -160,9 +171,6 @@ class SQLQuery
                 }
             }
         }
-        dump("---------------");
-        dump($this->sql);
-        dump($values);
 
         $query->execute($values);
 
@@ -179,8 +187,7 @@ class SQLQuery
         $this->sql .= 'SELECT ';
         $this->sql .= ($columns ? $this->stringifiedColumns($columns) : '*');
         $this->sql .=  ' FROM ';
-        // $this->sql .= $this->table;
-        $this->sql .= ':table_name';
+        $this->sql .= $this->getTableName();
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
         if ($this->sort) $this->sql .= ' ORDER BY ' . $this->sort[0] . ' ' . $this->sort[1];
         if ($this->lim) $this->sql .= ' LIMIT ' . $this->lim;
@@ -207,7 +214,8 @@ class SQLQuery
 
     function destroy()
     {
-        $this->sql = "DELETE FROM {$this->table}";
+        $this->sql = "DELETE FROM ";
+        $this->sql .= $this->getTableName();
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
         if ($this->sort) $this->sql .= ' ORDER BY ' . $this->sort[0] . ' ' . $this->sort[1];
         if ($this->lim) $this->sql .= ' LIMIT ' . $this->lim;
@@ -231,7 +239,7 @@ class SQLQuery
     function update($values)
     {
         $this->sql .= 'UPDATE ';
-        $this->sql .= $this->table;
+        $this->sql .= $this->getTableName();
         $this->sql .= ' SET ';
         $this->sql .= $this->stringifiedSetters($values);
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
@@ -242,7 +250,7 @@ class SQLQuery
     function insert($values)
     {
         $this->sql .= 'INSERT INTO ';
-        $this->sql .= $this->table;
+        $this->sql .= $this->getTableName();
         $this->sql .= '(' . $this->stringifiedColumns(array_keys($values)) . ')';
         $this->sql .= ' VALUES ';
 

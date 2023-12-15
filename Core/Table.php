@@ -2,11 +2,16 @@
 
 namespace Core;
 
+use EmptyIterator;
+
 class Table extends Renderer
 {
     private static ?string $primaryKey = null;
 
     private static ?string $table = null;
+
+    /** @var Column[] $columns  */
+    protected static $columns = [];
 
     private static function icon(string $name, string $color)
     {
@@ -69,19 +74,28 @@ class Table extends Renderer
         return self::el('tr', children: $table_data);
     }
 
+    protected static function hasNoColumns(): bool
+    {
+        return (empty(self::$columns) || (count(self::$columns) === 1 && self::$columns[0]->isPrimary()));
+    }
+
     static function html(?string $table = null): string
     {
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
-        self::$table = 'empty_wow';
+        self::$table = 'empty';
 
-        if (DB::table(self::$table)->missing())
-            return self::renderError('Table Not Found');
+        if (DB::table(self::$table)->missing()) return self::renderError('Table Not Found');
 
         self::$primaryKey = DB::table(self::$table)->getPrimaryKeyColumn();
 
         if (Request::param('action') === 'delete' && Request::paramExists(self::$primaryKey)) {
             self::destroyItem(self::$table);
         };
+
+        self::$columns = DB::table(self::$table)->getColumns();
+
+        if (self::hasNoColumns())
+            return self::renderWarning('Form ' . self::$table . ' has no column');
 
         $rows = array_map(fn ($item) => self::row($item), DB::table(self::$table)->all());
 
@@ -95,7 +109,14 @@ class Table extends Renderer
             ),
             self::el('table', ['class' => 'table text-center'], [
                 self::headers(DB::table(self::$table)->getColumns()), // table html headers
-                self::el('tbody', children: $rows) // table html body 
+                self::el(
+                    'tbody',
+                    children: empty($rows)
+                        ? self::el('tr', children: [
+                            self::el('td', ['colspan' => count(self::$columns) + 2], self::renderWarning('Empty Table'))
+                        ])
+                        : $rows
+                ) // table html body 
             ]),
         ]);
     }

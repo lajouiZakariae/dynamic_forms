@@ -236,18 +236,15 @@ class Form extends Renderer
 
     private static function handleCreation()
     {
-        // Creating a new Resource
-        // foreach ($_POST as $k => $v) self::$inputs[$k] = new Input(self::getColumnByName($k), $v);
-
         foreach (self::$columns as $col) {
             if (!$col->isPrimary()) {
                 self::$inputs[$col->getName()] = new Input($col, Request::input($col->getName()));
             }
         }
 
-        // DB::table(self::$table)->insert(self::$inputs);
+        DB::table(self::$table)->insert(self::$inputs);
 
-        // redirect('index.php');
+        redirect('index.php');
     }
 
     private static function handlePostRequest()
@@ -270,6 +267,7 @@ class Form extends Renderer
     protected static function load($table): null|string
     {
         self::$table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+        self::$table = 'empty';
 
         if (DB::table(self::$table)->missing())
             return self::renderError('Table Not Found');
