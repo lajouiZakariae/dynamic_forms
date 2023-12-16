@@ -13,7 +13,9 @@ class SQLQuery
 
     private ?array $sort = null;
 
-    private ?int $lim = null;
+    private ?int $_limit = null;
+
+    private ?int $_offset = null;
 
     function __construct(
         private \PDO $pdo,
@@ -25,9 +27,16 @@ class SQLQuery
     {
         if (str_contains($this->table, '.')) {
             $table_name = explode('.', $this->table);
-            $table_name[1] = '`' . $table_name[1] . '`';
-            return implode('.', $table_name);
+
+            if (!str_starts_with($table_name[1], '`')) {
+                $table_name[1] = '`' . $table_name[1] . '`';
+            }
+
+            return  implode('.', $table_name);
         } else {
+            if (str_starts_with($this->table, '`')) {
+                return $this->table;
+            }
             return $this->table = '`' . $this->table . '`';
         }
     }
@@ -115,7 +124,13 @@ class SQLQuery
 
     function limit(int $_limit)
     {
-        $this->lim = $_limit;
+        $this->_limit = $_limit;
+        return $this;
+    }
+
+    function offset(int $_offset)
+    {
+        $this->_offset = $_offset;
         return $this;
     }
 
@@ -188,9 +203,15 @@ class SQLQuery
         $this->sql .= ($columns ? $this->stringifiedColumns($columns) : '*');
         $this->sql .=  ' FROM ';
         $this->sql .= $this->getTableName();
+
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
+
         if ($this->sort) $this->sql .= ' ORDER BY ' . $this->sort[0] . ' ' . $this->sort[1];
-        if ($this->lim) $this->sql .= ' LIMIT ' . $this->lim;
+
+        if ($this->_limit) $this->sql .= ' LIMIT ' . $this->_limit;
+
+        if ($this->_offset) $this->sql .= ' OFFSET ' . $this->_offset;
+
         $this->sql .= ';';
 
         return $this->execute();
@@ -218,7 +239,7 @@ class SQLQuery
         $this->sql .= $this->getTableName();
         if ($this->conditions) $this->sql .= $this->stringifiedConditions();
         if ($this->sort) $this->sql .= ' ORDER BY ' . $this->sort[0] . ' ' . $this->sort[1];
-        if ($this->lim) $this->sql .= ' LIMIT ' . $this->lim;
+        if ($this->_limit) $this->sql .= ' LIMIT ' . $this->_limit;
         $this->sql .= ';';
 
         $this->execute();
@@ -260,5 +281,34 @@ class SQLQuery
         $this->sql .= ';';
 
         return $this->execute($values);
+    }
+
+    public function count(?array $column = null)
+    {
+        return $this->select(['COUNT(' . ($column ? $column : '*') . ') AS col_count'])[0]->col_count;
+    }
+
+
+    public function paginate(int $per_page = 10): Paginator
+    {
+        $page = (Request::paramExists('page') && Request::isParamInt('page'))
+            ? Request::paramInteger('page')
+            : 1;
+
+        dump(Request::isParamInt('page'));
+
+        $page_count = (int) ceil($this->count() / $per_page);
+
+        $this->sql = ''; // RESET
+
+        // Out of Scope
+        if ($page <= 0 || $page > $page_count) return redirect('index.php?page=1');
+
+        // Pagination Not needed
+        if ($page_count <= 2) return new Paginator(data: $this->all());
+
+        $offset = ($page - 1)  * $per_page;
+
+        return new Paginator(data: $this->limit($per_page)->offset($offset)->all(), last: $page_count);
     }
 }

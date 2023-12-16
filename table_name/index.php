@@ -1,5 +1,6 @@
 <?php
 
+use Core\DB;
 use Core\Table;
 
 require '../config.php';
@@ -20,7 +21,14 @@ require '../inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            Table::render(/* table name */) ?>
+            $result = DB::table('users')->paginate();
+            dump($result->getCurrentPage());
+            dump($result->getLast());
+            dump($result->getPrevious());
+            dump($result->getNext());
+            dump($result->getLinks());
+            // Table::render(/* table name */) 
+            ?>
         </div>
     </div>
 </div>
