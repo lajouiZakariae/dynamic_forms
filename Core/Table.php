@@ -80,8 +80,9 @@ class Table extends Renderer
 
         return view('table', [
             'columns' => $this->columns,
+            'primary_key' => $this->primaryKey,
             'data' => $paginator->getData(),
-            'currentPage' => $paginator->getCurrentPage(),
+            'current_page' => $paginator->getCurrentPage(),
             'previous_url' => $paginator->getPrevious() ? $paginator->getPreviousUrl() : null,
             'next_url' => $paginator->getNext() ? $paginator->getNextUrl() : null,
             'links' => empty($paginator->getLinks()) ? null : $paginator->getLinks(),
