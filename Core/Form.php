@@ -95,40 +95,34 @@ class Form extends Renderer
      */
     private function selectHtml(Column $column): string
     {
-        $options = [];
+        $html = '<select class="form-select" name="' . $column->getName() . '">';
 
         foreach ($column->getAllowedValues() as $value) {
-            $options[] = $this->el(
-                'option',
-                [
-                    'value' => $value,
-                    'selected' => $this->isEditMode()
-                        ? $this->entity[$column->getName()]->getValue() === $value // edit values
-                        : (
-                            ($this->isPostMode() || $this->isUpdateMode())
-                            ? $this->inputs[$column->getName()]->getValue() === $value //input values
-                            : false
-                        )
-                ],
-                titleCase($value)
-            );
+            $html .= '<option value="' . $value . '"';
+            if ($this->isEditMode() && $this->entity[$column->getName()]->getValue() === $value) {
+                $html .= 'selected';
+            } elseif (
+                ($this->isPostMode() || $this->isUpdateMode())
+                && $this->inputs[$column->getName()]->getValue() === $value
+            ) {
+                $html .= '';
+            }
+            $html .= '>' . titleCase($value) . '</option>';
         }
 
-        return $this->el(
-            'select',
-            ['class' => 'form-select', 'name' => $column->getName()],
-            $options
-        );
+        $html .= '</select>';
+
+        return $html;
     }
 
     /**
-     * <checkboxes> Html 
+     * Checkboxes Html 
      * @param Column $column
-     * @return string[]
+     * @return string
      */
-    private function checkBoxesHtml(Column $column): array
+    private function checkBoxesHtml(Column $column): string
     {
-        $options = [];
+        $html = '';
 
         foreach ($column->getAllowedValues() as $value) {
             $checked = false;
@@ -137,6 +131,12 @@ class Form extends Renderer
                 $checked = $this->entity[$column->getName()]->isAllowedValue($value);
             elseif ($this->isPostMode() || $this->isUpdateMode())
                 $checked = $this->inputs[$column->getName()]->isAllowedValue($value);
+
+            $html .= '<input type="checkbox" class="form-checkbox" value="' . $value . '" ';
+            $html .= $checked ? 'checked' : '';
+            $html .= ' >';
+
+            $html .= '<label>' . titleCase($value) . '</label>';
 
             $options[] = $this->el(
                 'input',
@@ -157,7 +157,7 @@ class Form extends Renderer
             );
         }
 
-        return $options;
+        return $html;
     }
 
     /**
@@ -167,19 +167,16 @@ class Form extends Renderer
      */
     private function textareaHtml(Column $column): string
     {
-        return $this->el(
-            'textarea',
-            [
-                'class' => 'form-control', 'name' => $column->getName(),
-            ],
-            $this->isEditMode()
-                ? $this->entity[$column->getName()]->getValue() // edit values
-                : (
-                    ($this->isPostMode() || $this->isUpdateMode())
-                    ? $this->inputs[$column->getName()]->getValue() //input values
-                    : ''
-                )
-        );
+        $html = '<textarea class="form-control" name="' . $column->getName() . '" >';
+
+        if ($this->isEditMode()) {
+            $html .= $this->entity[$column->getName()]->getValue();
+        } elseif ($this->isPostMode() || $this->isUpdateMode()) {
+            $html .= $this->inputs[$column->getName()]->getValue();
+        }
+
+        $html .= '</textarea>';
+        return $html;
     }
 
     /**
@@ -189,23 +186,18 @@ class Form extends Renderer
      */
     private function inputHtml(Column $column): string
     {
-        return $this->el(
-            "input",
-            [
-                'type' => $this->getInputType($column->getType()),
-                'class' => 'form-control',
-                'name' => $column->getName(),
-                'id' => $column->getName(),
-                'value' => $this->isEditMode()
-                    ? $this->entity[$column->getName()]->getValue() // edit values
-                    : (
-                        ($this->isPostMode() || $this->isUpdateMode())
-                        ? $this->inputs[$column->getName()]->getValue() //input values
-                        : false
-                    )
-            ],
-            self_closing: true
-        );
+        $html = '<input type="' . $this->getInputType($column->getType()) . '" class="form-control" name="' . $column->getName() . '" id="' . $column->getName() . '" ';
+
+        if ($this->isEditMode()) {
+            $html .= 'value="' . $this->entity[$column->getName()]->getValue() . '"';
+            # code...
+        } elseif ($this->isPostMode() || $this->isUpdateMode()) {
+            $html .= 'value="' . $this->inputs[$column->getName()]->getValue() . '"';
+        }
+
+        $html .= '>';
+
+        return $html;
     }
 
     /**
@@ -227,20 +219,15 @@ class Form extends Renderer
             $input = $this->inputHtml($column);
         }
 
-        return $this->el('div', ['class' => 'row mb-2'], [
-            $this->el('div', ['class' => 'col-3'], [
-                $this->el(
-                    'label',
-                    ['for' => $column->getName()],
-                    titleCase($column->getName())
-                )
-            ]),
-            $this->el(
-                'div',
-                ['class' => 'col-9'],
-                is_array($input) ? $input : [$input]
-            ),
-        ]);
+        $html = '<div class="row mb-2">
+                    <div class="col-3">
+                        <label for="' . $column->getName() . '">' . titleCase($column->getName()) . '</label>
+                    </div>
+                    
+                    <div class="col-9">' . $input . '</div>';
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**
@@ -324,7 +311,33 @@ class Form extends Renderer
     {
         if ($this->error) return $this->error;
 
-        $inputs = array_map(
+        $html = '<form action="post.php?';
+
+        if ($this->isEditMode() || $this->isUpdateMode()) {
+            $html .= 'action=edit&' . $this->primaryKey . '=' . $this->entity[$this->primaryKey]->getValue();
+        } else {
+            $html .= 'action=create';
+        }
+
+        $html .= '" ';
+
+        $html .= 'method="post"
+                    style="max-width:650px;"
+                >';
+
+        /** @var Column $column */
+        foreach ($this->columns as $column) {
+            if (!$column->isPrimary()) {
+                $html .= $this->inputZone($column);
+            }
+        }
+
+        $html .= '  <div class="col-9 ms-auto">
+                        <button type="submit" class="btn btn-primary w-100">Save</button>
+                    </div>
+                </form>';
+        return $html;
+        $inputs = implode("", array_map(
             function (Column $column) {
                 $isPrimaryKey = $column->getName() === $this->primaryKey;
 
@@ -332,7 +345,7 @@ class Form extends Renderer
                     ? '' : $this->inputZone($column);
             },
             $this->columns
-        );
+        ));
 
         $button = $this->el(
             'div',

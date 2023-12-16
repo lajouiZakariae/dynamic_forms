@@ -20,7 +20,7 @@ require APP_DIR . '/inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            Form::render('users'/* table name */)
+            Form::render('table_name'/* table name */);
             ?>
         </div>
     </div>

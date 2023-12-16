@@ -47,10 +47,15 @@ class Table extends Renderer
 
     private function icon(string $name, string $color): string
     {
-        return $this->el('i', [
-            'class' => 'fas fa-' . $name . ' text-light bg-' . $color . ' d-flex justify-content-center align-items-center',
-            'style' => 'border-radius:50%; width:32px;height:32px;cursor:pointer;'
-        ]);
+        $icon = '<i ';
+
+        $icon .=    'class="fas fa-' . $name . ' text-light bg-' . $color . ' d-flex justify-content-center align-items-center"';
+
+        $icon .=    'style="border-radius:50%; width:32px;height:32px;cursor:pointer;"';
+
+        $icon .= '></i>';
+
+        return $icon;
     }
 
     private function destroyItem(): void
@@ -58,70 +63,6 @@ class Table extends Renderer
         DB::table($this->table)
             ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
             ->destroy();
-    }
-
-    private function headers($columns): string
-    {
-        $headers =  array_map(
-            fn (Column $column) => $this->el('th', children: titleCase($column->getName())),
-            $columns,
-        );
-
-        $headers[] = $this->el('th', ['colspan' => 2], 'Actions');
-
-        return $this->el(
-            'thead',
-            children: $this->el("tr", children: $headers)
-        );
-
-        // $html = '  <thead>';
-        // $html .= '      <tr>';
-
-        // foreach ($columns as $column) {
-        //     $html .= ' <th>' . titleCase($column->getName()) . '</th>';
-        // }
-
-        // $html .= '          <th colspan="2">Actions</th>';
-        // $html .= '      </tr>';
-        // $html .= '  </thead>';
-        // return $html;
-    }
-
-    private function row(object $item): string
-    {
-        $table_data = [];
-
-        foreach ($item as $value) {
-            $table_data[] = $this->el('td', children: $value);
-        }
-
-        $url = $_SERVER['PHP_SELF'] . '?'
-            . ($this->currentPage ? ('page=' . $this->currentPage) : '');
-
-        $url .= '&action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey};
-
-        // dump($url);
-
-        $table_data[] = $this->el(
-            'td',
-            children: $this->el(
-                'a',
-                ['href' => $url],
-                // ['href' => 'index.php?action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
-                $this->icon(name: 'trash', color: 'danger'),
-            )
-        );
-
-        $table_data[] = $this->el(
-            'td',
-            children: $this->el(
-                'a',
-                ['href' => 'post.php?action=edit&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
-                $this->icon(name: 'pencil', color: 'primary'),
-            )
-        );
-
-        return $this->el('tr', children: $table_data);
     }
 
     public function _html(): string
@@ -137,70 +78,13 @@ class Table extends Renderer
         }
 
 
-        $rows = array_map(fn ($item) => $this->row($item), $paginator->getData());
-
-        $links = [];
-
-        if ($paginator->getLast()) {
-            // dump($this->currentPage);
-            $links[] = $this->el(
-                'li',
-                ['class' => 'page-item' . ($paginator->getPrevious() ? '' : ' disabled')],
-                children: $this->el(
-                    'a',
-                    ['class' => 'page-link', 'href' => $paginator->getPreviousUrl(), 'aria-disabled' => 'true'],
-                    'Previous'
-                )
-            );
-
-            // <li class="page-item"><a class="page-link" href="#">1</a></li>
-            foreach ($paginator->getLinks() as $link) {
-                $links[] = $this->el(
-                    'li',
-                    ['class' => 'page-item'],
-                    children: $this->el('a', ['class' => 'page-link', 'href' => $link->url], $link->page)
-                );
-            }
-
-            $links[] = $this->el(
-                'li',
-                ['class' => 'page-item' . ($paginator->getNext() ? '' : ' disabled')],
-                children: $this->el(
-                    'a',
-                    ['class' => 'page-link', 'href' => $paginator->getNextUrl(), 'aria-disabled' => 'true'],
-                    'Next'
-                )
-            );
-        }
-
-        return $this->el('div', children: [
-            $this->el('h2', ['class' => 'text-primary text-center'], 'Page: ' . $paginator->getCurrentPage()),
-
-            $this->el('a', ['class' => 'btn btn-primary', 'href' => 'post.php'], 'Add'),
-
-            $this->el('table', ['class' => 'table text-center'], [
-
-                $this->headers(DB::table($this->table)->getColumns()), // table html headers
-
-                $this->el(
-                    'tbody',
-                    children: empty($rows)
-                        ? $this->el('tr', children: [
-                            $this->el('td', ['colspan' => count($this->columns) + 2], $this->renderWarning('Empty Table'))
-                        ])
-                        : $rows
-                ), // table html body 
-            ]),
-
-            $this->el(
-                'nav',
-                ['aria-label' => 'Page navigation example'],
-                $this->el(
-                    'ul',
-                    ['class' => 'pagination justify-content-center'],
-                    children: implode('', $links)
-                )
-            )
+        return view('table', [
+            'columns' => $this->columns,
+            'data' => $paginator->getData(),
+            'currentPage' => $paginator->getCurrentPage(),
+            'previous_url' => $paginator->getPrevious() ? $paginator->getPreviousUrl() : null,
+            'next_url' => $paginator->getNext() ? $paginator->getNextUrl() : null,
+            'links' => empty($paginator->getLinks()) ? null : $paginator->getLinks(),
         ]);
     }
 

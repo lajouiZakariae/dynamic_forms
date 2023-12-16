@@ -22,7 +22,8 @@ require APP_DIR . '/inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            Table::render('users'/* table name */)
+            Table::render('users'/* table name */);
+            // Table::writeFile('users'/* table name */);
             ?>
 
         </div>

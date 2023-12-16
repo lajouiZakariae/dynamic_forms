@@ -31,11 +31,11 @@ class Renderer
 
     protected function renderError(string $msg): string
     {
-        return $this->el('div', ['class' => 'alert alert-danger',], $msg);
+        return  '<div class="alert alert-danger">' . $msg . '</div>';
     }
 
     protected function renderWarning(string $msg): string
     {
-        return $this->el('div', ['class' => 'alert alert-warning',], $msg);
+        return  '<div class="alert alert-warning">' . $msg . '</div>';
     }
 }
