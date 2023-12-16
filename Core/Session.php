@@ -1,6 +1,6 @@
 <?php
 
-namespace Core\support;
+namespace Core;
 
 class Session
 {
@@ -12,10 +12,10 @@ class Session
         session_start();
     }
 
-    public static function get(string $key): string
+    public static function get(string $key, string $fallback): mixed
     {
         self::instance();
-        return $_SESSION[$key] ?? false;
+        return $_SESSION[$key] ?? $fallback;
     }
 
     public static function set(string $key, string $value): void
@@ -30,7 +30,6 @@ class Session
         if (self::missing($key)) {
             self::set($key, $value);
         }
-
     }
 
     public static function missing(string $key): bool

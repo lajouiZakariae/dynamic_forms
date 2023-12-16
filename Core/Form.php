@@ -21,10 +21,33 @@ class Form extends Renderer
     private function __construct(?string $table)
     {
         $this->table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
-        $response = $this->load();
-        if (!is_null($response)) $this->error = $response;
+        $this->load();
     }
 
+    protected function load()
+    {
+        if (DB::table($this->table)->missing())
+            return $this->error =  $this->renderError('Table' . $this->table . ' Not Found');
+
+        $this->columns = DB::table($this->table)->getColumns();
+
+        if ($this->hasNoColumns())
+            return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
+
+        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
+
+        if (Request::isPost()) $this->handlePostRequest();
+
+        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey)) $this->setMode(FormMode::EDIT);
+
+        if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
+    }
+
+    /**
+     * FormMode setter
+     * @var string $formMode
+     * @return void
+     */
     private function setMode(string $formMode): void
     {
         $this->mode = $formMode;
@@ -33,11 +56,6 @@ class Form extends Renderer
     private function isEditMode(): bool
     {
         return $this->mode === FormMode::EDIT;
-    }
-
-    private function isCreateMode(): bool
-    {
-        return $this->mode === FormMode::CREATE;
     }
 
     private function isPostMode(): bool
@@ -50,20 +68,31 @@ class Form extends Renderer
         return $this->mode === FormMode::UPDATE;
     }
 
-    private function getInputType(Column $column): string
+    /**
+     * Returns the input html type
+     * Based on column type
+     * @param string $columnType
+     * @return string
+     */
+    private function getInputType(string $columnType): string
     {
         $type = 'text';
 
-        if ($column->getName() === 'email') $type = 'email';
-        if ($column->getName() === 'password') $type = 'password';
+        if ($columnType === 'email') $type = 'email';
+        if ($columnType === 'password') $type = 'password';
 
-        if ($column->getType() === 'date') $type = 'date';
-        elseif ($column->getType() === 'time') $type = 'time';
-        elseif ($column->getType() === 'datetime') $type = 'datetime-local';
+        if ($columnType === 'date') $type = 'date';
+        elseif ($columnType === 'time') $type = 'time';
+        elseif ($columnType === 'datetime') $type = 'datetime-local';
 
         return $type;
     }
 
+    /**
+     * <select> Html 
+     * @param Column $column
+     * @return string
+     */
     private function selectHtml(Column $column): string
     {
         $options = [];
@@ -92,6 +121,11 @@ class Form extends Renderer
         );
     }
 
+    /**
+     * <checkboxes> Html 
+     * @param Column $column
+     * @return string[]
+     */
     private function checkBoxesHtml(Column $column): array
     {
         $options = [];
@@ -126,6 +160,11 @@ class Form extends Renderer
         return $options;
     }
 
+    /**
+     * <textarea> Html 
+     * @param Column $column
+     * @return string
+     */
     private function textareaHtml(Column $column): string
     {
         return $this->el(
@@ -143,12 +182,17 @@ class Form extends Renderer
         );
     }
 
+    /**
+     * <input> Html 
+     * @param Column $column
+     * @return string
+     */
     private function inputHtml(Column $column): string
     {
         return $this->el(
             "input",
             [
-                'type' => $this->getInputType($column),
+                'type' => $this->getInputType($column->getType()),
                 'class' => 'form-control',
                 'name' => $column->getName(),
                 'id' => $column->getName(),
@@ -164,6 +208,11 @@ class Form extends Renderer
         );
     }
 
+    /**
+     * Form Froup Html 
+     * @param Column $column
+     * @return string
+     */
     private function inputZone(Column $column): string
     {
         $input = '';
@@ -194,6 +243,11 @@ class Form extends Renderer
         ]);
     }
 
+    /**
+     * returns Column based on key
+     * @param string $key
+     * @return Column $column
+     */
     protected function getColumnByName(string $key): Column
     {
         $filtered = array_filter($this->columns, fn (Column $column) => $column->getName() === $key);
@@ -229,8 +283,8 @@ class Form extends Renderer
             ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
             ->update($this->inputs);
 
-        $url = '';
-        redirect('index.php');
+        $page = Session::get("page", 1);
+        redirect('index.php' . ($page ? "?page=$page" : ''));
     }
 
     private function handleCreation()
@@ -262,27 +316,10 @@ class Form extends Renderer
             || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
     }
 
-    protected function load(): ?string
-    {
-        if (DB::table($this->table)->missing())
-            return $this->renderError('Table Not Found');
-
-        $this->columns = DB::table($this->table)->getColumns();
-
-        if ($this->hasNoColumns())
-            return $this->renderWarning('Table ' . $this->table . ' has no column');
-
-        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
-
-        if (Request::isPost()) $this->handlePostRequest();
-
-        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey)) $this->setMode(FormMode::EDIT);
-
-        if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
-
-        return null;
-    }
-
+    /**
+     * Cenerates the table html with data
+     * @return ?string
+     */
     public function _html(): string
     {
         if ($this->error) return $this->error;
@@ -324,16 +361,31 @@ class Form extends Renderer
         return $html;
     }
 
+    /**
+     * @param ?string $table
+     * @return ?string
+     */
     public static function html(?string $table = null): string
     {
         return (new self($table))->_html();
     }
 
+    /**
+     * Outputs the table
+     * @param ?string $table
+     * @return void
+     */
     public static function render(?string $table = null): void
     {
         echo (new self($table))->_html();
     }
 
+    /**
+     * Write html to a file
+     * @param ?string $table
+     * @param ?string $filename
+     * @return int|null
+     */
     public static function writeFile(?string $table, string $filename = 'draft.php'): int|null
     {
         $content = (new self($table))->_html();

@@ -132,14 +132,16 @@ class Table extends Renderer
 
         if ($paginator->getCurrentPage()) {
             $this->currentPage = $paginator->getCurrentPage();
+
+            Session::set('page', $this->currentPage);
         }
+
 
         $rows = array_map(fn ($item) => $this->row($item), $paginator->getData());
 
         $links = [];
 
         if ($paginator->getLast()) {
-
             // dump($this->currentPage);
             $links[] = $this->el(
                 'li',

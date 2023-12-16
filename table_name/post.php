@@ -3,11 +3,12 @@
 use Core\Form;
 
 require '../config.php';
-require '../functions.php';
+require APP_DIR . '/functions.php';
+require APP_DIR . '/vendor/autoload.php';
 spl_autoload_register(function ($class) {
     require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
 });
-require '../inc/header.php';
+require APP_DIR . '/inc/header.php';
 ?>
 <div class="container-fluid">
     <div class="row">
