@@ -225,8 +225,12 @@ class Form extends Renderer
          * Updating resource in database
          */
 
-        // DB::table($this->table)->whereEquals($this->primaryKey, Request::param($this->primaryKey))->update($values);
-        // redirect('index.php');
+        DB::table($this->table)
+            ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
+            ->update($this->inputs);
+
+        $url = '';
+        redirect('index.php');
     }
 
     private function handleCreation()
@@ -235,9 +239,8 @@ class Form extends Renderer
         /**
          * Inserting to database
          */
-
-        // DB::table($this->table)->insert($this->inputs);
-        // redirect('index.php');
+        DB::table($this->table)->insert($this->inputs);
+        redirect('index.php');
     }
 
     private function handlePostRequest()

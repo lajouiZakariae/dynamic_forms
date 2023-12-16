@@ -4,11 +4,12 @@ use Core\DB;
 use Core\Table;
 
 require '../config.php';
-require '../functions.php';
+require APP_DIR . '/functions.php';
+require APP_DIR . '/vendor/autoload.php';
 spl_autoload_register(function ($class) {
     require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
 });
-require '../inc/header.php';
+require APP_DIR . '/inc/header.php';
 
 ?>
 
@@ -21,14 +22,9 @@ require '../inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
-            $result = DB::table('users')->paginate();
-            dump($result->getCurrentPage());
-            dump($result->getLast());
-            dump($result->getPrevious());
-            dump($result->getNext());
-            dump($result->getLinks());
-            // Table::render(/* table name */) 
+            Table::render('users'/* table name */)
             ?>
+
         </div>
     </div>
 </div>

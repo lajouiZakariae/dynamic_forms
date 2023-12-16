@@ -12,11 +12,12 @@ class Paginator
         private array $data,
         private ?int $last = null,
     ) {
-        $this->current_page = (Request::paramExists('page') && Request::isParamInt('page'))
-            ? Request::paramInteger('page')
-            : 1;
 
         if ($this->last) {
+            $this->current_page = (Request::paramExists('page') && Request::isParamInt('page'))
+                ? Request::paramInteger('page')
+                : 1;
+
             $this->generateLinks();
         }
     }
@@ -69,11 +70,29 @@ class Paginator
             : (($this->current_page === 1) ? null : $this->current_page - 1);
     }
 
+    protected function urlVersion(int $page): string
+    {
+        return $_SERVER['PHP_SELF'] . '?page=' . $page;
+    }
+
+    function getNextUrl(): ?string
+    {
+        return $this->getNext() ? $this->urlVersion($this->getNext()) : null;
+    }
+
+    function getPreviousUrl(): ?string
+    {
+        return $this->getPrevious() ? $this->urlVersion($this->getPrevious()) : null;
+    }
+
     /**
-     * @return int[]
+     * @return object[]
      */
     public function getLinks()
     {
-        return $this->links;
+        return array_map(
+            fn (int $link) => (object) ['page' => $link, 'url' => $this->urlVersion($link)],
+            $this->links,
+        );
     }
 }

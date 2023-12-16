@@ -295,11 +295,14 @@ class SQLQuery
             ? Request::paramInteger('page')
             : 1;
 
-        dump(Request::isParamInt('page'));
 
-        $page_count = (int) ceil($this->count() / $per_page);
+        $count = $this->count();
 
-        $this->sql = ''; // RESET
+        if ($count === 0) return new Paginator(data: []);
+
+        $page_count = (int) ceil($count / $per_page);
+
+        $this->sql =   ''; // RESET
 
         // Out of Scope
         if ($page <= 0 || $page > $page_count) return redirect('index.php?page=1');

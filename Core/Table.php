@@ -4,14 +4,16 @@ namespace Core;
 
 class Table extends Renderer
 {
-    protected string $table;
-
     protected static $instances = [];
+
+    protected string $table;
 
     protected ?string $primaryKey = null;
 
     /** @var Column[] $columns */
     protected $columns = [];
+
+    protected ?int $currentPage = null;
 
     protected ?string $error = null;
 
@@ -19,6 +21,28 @@ class Table extends Renderer
     {
         $this->table = $table;
         $this->load();
+    }
+
+    protected function hasNoColumns(): bool
+    {
+        return (empty($this->columns) || (count($this->columns) === 1 && $this->columns[0]->isPrimary()));
+    }
+
+    protected function load()
+    {
+        if (DB::table($this->table)->missing())
+            return $this->error = $this->renderError('Table ' . $this->table . ' Not Found');
+
+        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
+
+        if (Request::param('action') === 'delete' && Request::paramExists($this->primaryKey)) {
+            $this->destroyItem();
+        }
+
+        $this->columns = DB::table($this->table)->getColumns();
+
+        if ($this->hasNoColumns())
+            return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
     }
 
     private function icon(string $name, string $color): string
@@ -71,11 +95,19 @@ class Table extends Renderer
             $table_data[] = $this->el('td', children: $value);
         }
 
+        $url = $_SERVER['PHP_SELF'] . '?'
+            . ($this->currentPage ? ('page=' . $this->currentPage) : '');
+
+        $url .= '&action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey};
+
+        // dump($url);
+
         $table_data[] = $this->el(
             'td',
             children: $this->el(
                 'a',
-                ['href' => 'index.php?action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
+                ['href' => $url],
+                // ['href' => 'index.php?action=delete&' . $this->primaryKey . '=' . $item->{$this->primaryKey}],
                 $this->icon(name: 'trash', color: 'danger'),
             )
         );
@@ -92,42 +124,57 @@ class Table extends Renderer
         return $this->el('tr', children: $table_data);
     }
 
-    protected function hasNoColumns(): bool
-    {
-        return (empty($this->columns) || (count($this->columns) === 1 && $this->columns[0]->isPrimary()));
-    }
-
-    protected function load()
-    {
-        if (DB::table($this->table)->missing())
-            return $this->error = $this->renderError('Table ' . $this->table . ' Not Found');
-
-        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
-
-        if (Request::param('action') === 'delete' && Request::paramExists($this->primaryKey)) {
-            $this->destroyItem();
-        }
-
-        $this->columns = DB::table($this->table)->getColumns();
-
-        if ($this->hasNoColumns())
-            return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
-    }
-
     public function _html(): string
     {
         if ($this->error) return $this->error;
 
-        $rows = array_map(fn ($item) => $this->row($item), DB::table($this->table)->all());
+        $paginator = DB::table($this->table)->paginate(per_page: 8);
+
+        if ($paginator->getCurrentPage()) {
+            $this->currentPage = $paginator->getCurrentPage();
+        }
+
+        $rows = array_map(fn ($item) => $this->row($item), $paginator->getData());
+
+        $links = [];
+
+        if ($paginator->getLast()) {
+
+            // dump($this->currentPage);
+            $links[] = $this->el(
+                'li',
+                ['class' => 'page-item' . ($paginator->getPrevious() ? '' : ' disabled')],
+                children: $this->el(
+                    'a',
+                    ['class' => 'page-link', 'href' => $paginator->getPreviousUrl(), 'aria-disabled' => 'true'],
+                    'Previous'
+                )
+            );
+
+            // <li class="page-item"><a class="page-link" href="#">1</a></li>
+            foreach ($paginator->getLinks() as $link) {
+                $links[] = $this->el(
+                    'li',
+                    ['class' => 'page-item'],
+                    children: $this->el('a', ['class' => 'page-link', 'href' => $link->url], $link->page)
+                );
+            }
+
+            $links[] = $this->el(
+                'li',
+                ['class' => 'page-item' . ($paginator->getNext() ? '' : ' disabled')],
+                children: $this->el(
+                    'a',
+                    ['class' => 'page-link', 'href' => $paginator->getNextUrl(), 'aria-disabled' => 'true'],
+                    'Next'
+                )
+            );
+        }
 
         return $this->el('div', children: [
-            $this->el(
-                'a',
-                [
-                    'class' => 'btn btn-primary', 'href' => 'post.php'
-                ],
-                'Add'
-            ),
+            $this->el('h2', ['class' => 'text-primary text-center'], 'Page: ' . $paginator->getCurrentPage()),
+
+            $this->el('a', ['class' => 'btn btn-primary', 'href' => 'post.php'], 'Add'),
 
             $this->el('table', ['class' => 'table text-center'], [
 
@@ -140,8 +187,18 @@ class Table extends Renderer
                             $this->el('td', ['colspan' => count($this->columns) + 2], $this->renderWarning('Empty Table'))
                         ])
                         : $rows
-                ) // table html body 
+                ), // table html body 
             ]),
+
+            $this->el(
+                'nav',
+                ['aria-label' => 'Page navigation example'],
+                $this->el(
+                    'ul',
+                    ['class' => 'pagination justify-content-center'],
+                    children: implode('', $links)
+                )
+            )
         ]);
     }
 
