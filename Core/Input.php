@@ -21,7 +21,7 @@ class Input
         return $this->value;
     }
 
-    function isAllowedValue(string|array|null $val): bool
+    function isValueExists(string|array|null $val): bool
     {
         if ($this->getValue() === null) return false;
 

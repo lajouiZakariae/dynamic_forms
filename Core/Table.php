@@ -83,6 +83,7 @@ class Table extends Renderer
             'primary_key' => $this->primaryKey,
             'data' => $paginator->getData(),
             'current_page' => $paginator->getCurrentPage(),
+            'last' => $paginator->getLast(),
             'previous_url' => $paginator->getPrevious() ? $paginator->getPreviousUrl() : null,
             'next_url' => $paginator->getNext() ? $paginator->getNextUrl() : null,
             'links' => empty($paginator->getLinks()) ? null : $paginator->getLinks(),

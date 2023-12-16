@@ -69,168 +69,6 @@ class Form extends Renderer
     }
 
     /**
-     * Returns the input html type
-     * Based on column type
-     * @param string $columnType
-     * @return string
-     */
-    private function getInputType(string $columnType): string
-    {
-        $type = 'text';
-
-        if ($columnType === 'email') $type = 'email';
-        if ($columnType === 'password') $type = 'password';
-
-        if ($columnType === 'date') $type = 'date';
-        elseif ($columnType === 'time') $type = 'time';
-        elseif ($columnType === 'datetime') $type = 'datetime-local';
-
-        return $type;
-    }
-
-    /**
-     * <select> Html 
-     * @param Column $column
-     * @return string
-     */
-    private function selectHtml(Column $column): string
-    {
-        $html = '<select class="form-select" name="' . $column->getName() . '">';
-
-        foreach ($column->getAllowedValues() as $value) {
-            $html .= '<option value="' . $value . '"';
-            if ($this->isEditMode() && $this->entity[$column->getName()]->getValue() === $value) {
-                $html .= 'selected';
-            } elseif (
-                ($this->isPostMode() || $this->isUpdateMode())
-                && $this->inputs[$column->getName()]->getValue() === $value
-            ) {
-                $html .= '';
-            }
-            $html .= '>' . titleCase($value) . '</option>';
-        }
-
-        $html .= '</select>';
-
-        return $html;
-    }
-
-    /**
-     * Checkboxes Html 
-     * @param Column $column
-     * @return string
-     */
-    private function checkBoxesHtml(Column $column): string
-    {
-        $html = '';
-
-        foreach ($column->getAllowedValues() as $value) {
-            $checked = false;
-
-            if ($this->isEditMode())
-                $checked = $this->entity[$column->getName()]->isAllowedValue($value);
-            elseif ($this->isPostMode() || $this->isUpdateMode())
-                $checked = $this->inputs[$column->getName()]->isAllowedValue($value);
-
-            $html .= '<input type="checkbox" class="form-checkbox" value="' . $value . '" ';
-            $html .= $checked ? 'checked' : '';
-            $html .= ' >';
-
-            $html .= '<label>' . titleCase($value) . '</label>';
-
-            $options[] = $this->el(
-                'input',
-                [
-                    'type' => 'checkbox',
-                    'class' => 'form-checkbox',
-                    'name' => $column->getName() . '[]',
-                    'value' => $value,
-                    'checked' => $checked
-                ],
-                self_closing: true,
-            );
-
-            $options[] = $this->el(
-                'label',
-                [],
-                titleCase($value)
-            );
-        }
-
-        return $html;
-    }
-
-    /**
-     * <textarea> Html 
-     * @param Column $column
-     * @return string
-     */
-    private function textareaHtml(Column $column): string
-    {
-        $html = '<textarea class="form-control" name="' . $column->getName() . '" >';
-
-        if ($this->isEditMode()) {
-            $html .= $this->entity[$column->getName()]->getValue();
-        } elseif ($this->isPostMode() || $this->isUpdateMode()) {
-            $html .= $this->inputs[$column->getName()]->getValue();
-        }
-
-        $html .= '</textarea>';
-        return $html;
-    }
-
-    /**
-     * <input> Html 
-     * @param Column $column
-     * @return string
-     */
-    private function inputHtml(Column $column): string
-    {
-        $html = '<input type="' . $this->getInputType($column->getType()) . '" class="form-control" name="' . $column->getName() . '" id="' . $column->getName() . '" ';
-
-        if ($this->isEditMode()) {
-            $html .= 'value="' . $this->entity[$column->getName()]->getValue() . '"';
-            # code...
-        } elseif ($this->isPostMode() || $this->isUpdateMode()) {
-            $html .= 'value="' . $this->inputs[$column->getName()]->getValue() . '"';
-        }
-
-        $html .= '>';
-
-        return $html;
-    }
-
-    /**
-     * Form Froup Html 
-     * @param Column $column
-     * @return string
-     */
-    private function inputZone(Column $column): string
-    {
-        $input = '';
-
-        if ($column->isEnum()) {
-            $input = $this->selectHtml($column);
-        } elseif ($column->isSet()) {
-            $input = $this->checkBoxesHtml($column);
-        } elseif ($column->isText()) {
-            $input = $this->textareaHtml($column);
-        } else {
-            $input = $this->inputHtml($column);
-        }
-
-        $html = '<div class="row mb-2">
-                    <div class="col-3">
-                        <label for="' . $column->getName() . '">' . titleCase($column->getName()) . '</label>
-                    </div>
-                    
-                    <div class="col-9">' . $input . '</div>';
-        $html .= '</div>';
-
-        return $html;
-    }
-
-    /**
      * returns Column based on key
      * @param string $key
      * @return Column $column
@@ -266,12 +104,12 @@ class Form extends Renderer
          * Updating resource in database
          */
 
-        DB::table($this->table)
-            ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
-            ->update($this->inputs);
+        // DB::table($this->table)
+        //     ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
+        //     ->update($this->inputs);
 
         $page = Session::get("page", 1);
-        redirect('index.php' . ($page ? "?page=$page" : ''));
+        // redirect('index.php' . ($page ? "?page=$page" : ''));
     }
 
     private function handleCreation()
@@ -280,8 +118,8 @@ class Form extends Renderer
         /**
          * Inserting to database
          */
-        DB::table($this->table)->insert($this->inputs);
-        redirect('index.php');
+        // DB::table($this->table)->insert($this->inputs);
+        // redirect('index.php');
     }
 
     private function handlePostRequest()
@@ -311,67 +149,25 @@ class Form extends Renderer
     {
         if ($this->error) return $this->error;
 
-        $html = '<form action="post.php?';
+        $url = 'post.php';
 
-        if ($this->isEditMode() || $this->isUpdateMode()) {
-            $html .= 'action=edit&' . $this->primaryKey . '=' . $this->entity[$this->primaryKey]->getValue();
-        } else {
-            $html .= 'action=create';
-        }
+        if ($this->isEditMode() || $this->isUpdateMode())
+            $url .= '?action=edit&' . $this->primaryKey . '=' . $this->entity[$this->primaryKey]->getValue();
+        else
+            $url .= '?action=create';
 
-        $html .= '" ';
 
-        $html .= 'method="post"
-                    style="max-width:650px;"
-                >';
+        $values = null;
 
-        /** @var Column $column */
-        foreach ($this->columns as $column) {
-            if (!$column->isPrimary()) {
-                $html .= $this->inputZone($column);
-            }
-        }
+        if ($this->isEditMode()) $values = $this->entity;
+        if ($this->isUpdateMode() || $this->isPostMode()) $values = $this->inputs;
 
-        $html .= '  <div class="col-9 ms-auto">
-                        <button type="submit" class="btn btn-primary w-100">Save</button>
-                    </div>
-                </form>';
-        return $html;
-        $inputs = implode("", array_map(
-            function (Column $column) {
-                $isPrimaryKey = $column->getName() === $this->primaryKey;
-
-                return  $isPrimaryKey
-                    ? '' : $this->inputZone($column);
-            },
-            $this->columns
-        ));
-
-        $button = $this->el(
-            'div',
-            ['class' => 'row'],
-            $this->el(
-                'div',
-                ['class' => 'col-9 ms-auto'],
-                $this->el('button', ['type' => 'submit', 'class' => 'btn btn-primary w-100'], 'Save')
-            )
-        );
-
-        $html = $this->el(
-            'form',
-            [
-                'action' => "post.php?" . (
-                    $this->isEditMode() || $this->isUpdateMode()
-                    ? 'action=edit&' . $this->primaryKey . '=' . $this->entity[$this->primaryKey]->getValue()
-                    : 'action=create'
-                ),
-                'method' => 'post',
-                'style' => 'max-width:650px;',
-            ],
-            array_merge($inputs, [$button])
-        );
-
-        return $html;
+        return view('form', [
+            'primary_key' => $this->primaryKey,
+            'columns' => $this->columns,
+            'post_url' => $url,
+            'values' => $values
+        ]);
     }
 
     /**

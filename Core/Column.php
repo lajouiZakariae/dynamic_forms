@@ -48,25 +48,25 @@ class Column
         return $this->allowed_values;
     }
 
-    public function isText(): string
-    {
-        return in_array($this->type, $this->big_text_types);
-    }
+    // public function isText(): string
+    // {
+    //     return in_array($this->type, $this->big_text_types);
+    // }
 
     function isNumeric(): bool
     {
         return in_array($this->type, $this->numeric_types);
     }
 
-    function isEnum(): bool
-    {
-        return $this->type === 'enum';
-    }
+    // function isEnum(): bool
+    // {
+    //     return $this->type === 'enum';
+    // }
 
-    function isSet(): bool
-    {
-        return $this->type === 'set';
-    }
+    // function isSet(): bool
+    // {
+    //     return $this->type === 'set';
+    // }
 
     function isPrimary(): bool
     {
@@ -88,5 +88,67 @@ class Column
             fn (string $val) => substr($val, 1, strlen($val) - 2),
             explode(',', $allowed_values_as_string)
         );
+    }
+
+    /**
+     * Returns the input html type
+     * Based on column type
+     * @param string $columnType
+     * @return string
+     */
+    function getInputType(): string
+    {
+        $type = 'text';
+
+        if ($this->getType() === 'email') $type = 'email';
+        if ($this->getType() === 'password') $type = 'password';
+
+        if ($this->getType() === 'enum') $type = 'enum';
+        if ($this->getType() === 'set') $type = 'set';
+
+        if ($this->getType() === 'date') $type = 'date';
+
+        elseif ($this->getType() === 'time') $type = 'time';
+
+        elseif ($this->getType() === 'datetime') $type = 'datetime-local';
+
+        if (in_array($this->getType(), $this->big_text_types)) $type = 'textarea';
+
+        return $type;
+    }
+
+    function isText()
+    {
+        return $this->getInputType() === 'text';
+    }
+
+    function isTextArea()
+    {
+        return $this->getInputType() === 'textarea';
+    }
+
+    function isDate()
+    {
+        return $this->getInputType() === 'date';
+    }
+
+    function isDateTime()
+    {
+        return $this->getInputType() === 'datetime-local';
+    }
+
+    function isTime()
+    {
+        return $this->getInputType() === 'time';
+    }
+
+    function isEnum()
+    {
+        return $this->getInputType() === 'enum';
+    }
+
+    function isSet()
+    {
+        return $this->getInputType() === 'set';
     }
 }
