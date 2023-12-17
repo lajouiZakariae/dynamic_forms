@@ -4,19 +4,19 @@ namespace Core;
 
 class Form extends Renderer
 {
-    protected ?string $table = null;
+    private ?string $table = null;
 
-    protected ?string $primaryKey = null;
+    private ?string $primaryKey = null;
 
-    protected string $mode = FormMode::CREATE;
+    private string $mode = FormMode::CREATE;
 
-    protected array $columns = [];
+    private array $columns = [];
 
     private array $entity = [];
 
     private array $inputs = [];
 
-    protected ?string $error = null;
+    private ?string $error = null;
 
     private function __construct(?string $table)
     {
@@ -24,23 +24,28 @@ class Form extends Renderer
         $this->load();
     }
 
-    protected function load()
+    private function load()
     {
-        if (DB::table($this->table)->missing())
-            return $this->error =  $this->renderError('Table' . $this->table . ' Not Found');
+        if (DB::table($this->table)->missing()) return $this->error =  $this->renderError('Table' . $this->table . ' Not Found');
 
         $this->columns = DB::table($this->table)->getColumns();
 
-        if ($this->hasNoColumns())
-            return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
+        if ($this->hasNoColumns()) return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
 
         $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
 
         if (Request::isPost()) $this->handlePostRequest();
 
-        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey)) $this->setMode(FormMode::EDIT);
+        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey))
+            $this->setMode(FormMode::EDIT);
 
         if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
+    }
+
+    private function hasNoColumns(): bool
+    {
+        return empty($this->columns)
+            || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
     }
 
     /**
@@ -73,21 +78,21 @@ class Form extends Renderer
      * @param string $key
      * @return Column $column
      */
-    protected function getColumnByName(string $key): Column
+    private function getColumnByName(string $key): Column
     {
         $filtered = array_filter($this->columns, fn (Column $column) => $column->getName() === $key);
 
         return $filtered[array_key_first($filtered)];
     }
 
-    protected function fetchEntity(): void
+    private function fetchEntity(): void
     {
         foreach (DB::table($this->table)->find(Request::param($this->primaryKey)) as $key => $value) {
             $this->entity[$key] = new Input($this->getColumnByName($key), $value);
         }
     }
 
-    protected function populateInputs(): void
+    private function populateInputs(): void
     {
         foreach ($this->columns as $col) {
             if (!$col->isPrimary()) {
@@ -96,7 +101,7 @@ class Form extends Renderer
         }
     }
 
-    protected function handleEditing()
+    private function handleEditing()
     {
         $this->populateInputs();
 
@@ -135,12 +140,6 @@ class Form extends Renderer
         });
     }
 
-    protected function hasNoColumns(): bool
-    {
-        return empty($this->columns)
-            || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
-    }
-
     /**
      * Cenerates the table html with data
      * @return ?string
@@ -160,6 +159,7 @@ class Form extends Renderer
         $values = null;
 
         if ($this->isEditMode()) $values = $this->entity;
+
         if ($this->isUpdateMode() || $this->isPostMode()) $values = $this->inputs;
 
         return view('form', [

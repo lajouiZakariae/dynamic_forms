@@ -48,25 +48,10 @@ class Column
         return $this->allowed_values;
     }
 
-    // public function isText(): string
-    // {
-    //     return in_array($this->type, $this->big_text_types);
-    // }
-
     function isNumeric(): bool
     {
         return in_array($this->type, $this->numeric_types);
     }
-
-    // function isEnum(): bool
-    // {
-    //     return $this->type === 'enum';
-    // }
-
-    // function isSet(): bool
-    // {
-    //     return $this->type === 'set';
-    // }
 
     function isPrimary(): bool
     {
@@ -100,17 +85,19 @@ class Column
     {
         $type = 'text';
 
-        if ($this->getType() === 'email') $type = 'email';
-        if ($this->getType() === 'password') $type = 'password';
+        if ($this->getType() === 'varchar' && $this->getName() === 'email') $type = 'email';
+
+        if ($this->getType() === 'varchar' && $this->getName() === 'password') $type = 'password';
 
         if ($this->getType() === 'enum') $type = 'enum';
+
         if ($this->getType() === 'set') $type = 'set';
 
         if ($this->getType() === 'date') $type = 'date';
 
-        elseif ($this->getType() === 'time') $type = 'time';
+        if ($this->getType() === 'time') $type = 'time';
 
-        elseif ($this->getType() === 'datetime') $type = 'datetime-local';
+        if ($this->getType() === 'datetime') $type = 'datetime-local';
 
         if (in_array($this->getType(), $this->big_text_types)) $type = 'textarea';
 

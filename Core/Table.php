@@ -77,7 +77,6 @@ class Table extends Renderer
             Session::set('page', $this->currentPage);
         }
 
-
         return view('table', [
             'columns' => $this->columns,
             'primary_key' => $this->primaryKey,

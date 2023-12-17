@@ -44,7 +44,6 @@ class SQLQuery
     /**
      * Methods for getting information about Tables
      */
-
     function missing()
     {
         $result = DB::table('INFORMATION_SCHEMA.TABLES')
@@ -58,12 +57,6 @@ class SQLQuery
     function exists()
     {
         return !$this->missing();
-    }
-
-    function hasColumns()
-    {
-        if (!$this->table_columns) $this->loadColumns();
-        return $this->table_columns;
     }
 
     /**
@@ -94,6 +87,7 @@ class SQLQuery
         if ($this->table_columns) {
             return array_filter($this->table_columns, fn ($column) => $column->primary)[0]->getName();
         }
+
         return DB::table("information_schema.COLUMNS")
             ->whereEquals('TABLE_SCHEMA', DBNAME)
             ->whereEquals('TABLE_NAME', $this->table)
@@ -149,16 +143,21 @@ class SQLQuery
         return " WHERE " . implode(' AND ', $conditions_as_strings);
     }
 
-    private function bindableParams(array $data)
+
+    private function stringifiedSetters($values)
     {
-        $params = [];
 
-        foreach ($data as $k => $v) $params[str_starts_with($k, ':') ? "input_$k" : ":input_$k"] = $v;
+        $setters_as_strings = [];
 
-        return $params;
+        foreach ($values as $k => $_) {
+            $setters_as_strings[] = $k . '=' . ':input_' . $k;
+        }
+
+        return implode(' , ', $setters_as_strings);
     }
 
-    public function execute(array $inputs = []): array|bool
+
+    private function execute(array $inputs = []): array|bool
     {
         $query = $this->pdo->prepare($this->sql);
 
@@ -245,18 +244,6 @@ class SQLQuery
         $this->execute();
     }
 
-    private function stringifiedSetters($values)
-    {
-
-        $setters_as_strings = [];
-
-        foreach ($values as $k => $_) {
-            $setters_as_strings[] = $k . '=' . ':input_' . $k;
-        }
-
-        return implode(' , ', $setters_as_strings);
-    }
-
     function update($values)
     {
         $this->sql .= 'UPDATE ';
@@ -287,7 +274,6 @@ class SQLQuery
     {
         return $this->select(['COUNT(' . ($column ? $column : '*') . ') AS col_count'])[0]->col_count;
     }
-
 
     public function paginate(int $per_page = 10): Paginator
     {

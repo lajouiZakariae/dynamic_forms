@@ -1,12 +1,18 @@
 <form action="<?php echo $post_url ?>" method="post" style="max-width:650px;">
 
-    <?php foreach ($columns as $col) :
+    <?php foreach ($columns as $col) {
         if ($col->getName() === $primary_key) continue; ?>
 
         <div class="row mb-2">
 
             <div class="col-3">
-                <label for="varchar_col"><?php echo titleCase($col->getName()) ?></label>
+
+                <label for="varchar_col">
+
+                    <?php echo titleCase($col->getName()) ?>
+
+                </label>
+
             </div>
 
             <div class="col-9">
@@ -14,7 +20,9 @@
 
                 <?php if ($col->isTextArea()) : ?>
 
-                    <textarea class="form-control" name="<?php echo $col->getName() ?>"></textarea>
+                    <textarea class="form-control" name="<?php echo $col->getName() ?>">
+                        <?php echo $values ? $values[$col->getName()]->getvalue() : '' ?>
+                    </textarea>
 
                 <?php elseif ($col->isEnum()) : ?>
 
@@ -22,7 +30,7 @@
 
                         <?php foreach ($col->getAllowedValues() as $value) : ?>
 
-                            <option value="<?php echo $value ?>" <?php echo $values[$col->getName()]->getvalue() === $value ? 'selected' : '' ?>>
+                            <option value="<?php echo $value ?>" <?php echo ($values && $values[$col->getName()]->getvalue() === $value) ? 'selected' : '' ?>>
 
                                 <?php echo titleCase($value) ?>
 
@@ -32,11 +40,12 @@
 
                     </select>
 
+
                 <?php elseif ($col->isSet()) : ?>
 
                     <?php foreach ($col->getAllowedValues() as $value) :
                         $checked = null;
-                        if ($values[$col->getName()]) {
+                        if ($values && $values[$col->getName()]) {
                             $checked = $values[$col->getName()]->isValueExists($value);
                         }
                     ?>
@@ -50,14 +59,14 @@
                     <?php endforeach; ?>
 
                 <?php else : ?>
-                    <input type="<?php echo $col->getInputType() ?>" name="<?php echo $col->getName() ?>" class="form-control" name="varchar_col" id="varchar_col" value="<?php echo $values[$col->getName()]->getValue() ?>">
+
+                    <input type="<?php echo $col->getInputType() ?>" name="<?php echo $col->getName() ?>" id="<?php echo $col->getName() ?>" value="<?php echo $values ? $values[$col->getName()]->getValue() : '' ?>" class="form-control">
 
                 <?php endif; ?>
 
-
             </div>
         </div>
-    <?php endforeach ?>
+    <?php } ?>
 
 
     <div class="col-9 ms-auto">

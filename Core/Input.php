@@ -6,8 +6,8 @@ class Input
 {
 
     public function __construct(
-        protected Column $column,
-        protected mixed $value
+        private Column $column,
+        private mixed $value
     ) {
     }
 

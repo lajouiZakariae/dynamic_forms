@@ -22,7 +22,7 @@ class Paginator
         }
     }
 
-    protected function generateLinks()
+    private function generateLinks()
     {
         $links = [];
 
@@ -70,7 +70,7 @@ class Paginator
             : (($this->current_page === 1) ? null : $this->current_page - 1);
     }
 
-    protected function urlVersion(int $page): string
+    private function urlVersion(int $page): string
     {
         return $_SERVER['PHP_SELF'] . '?page=' . $page;
     }

@@ -67,12 +67,12 @@ class Request
     /**
      * Getters
      */
-    static function param(string $name): string|array|null
+    static function param(string $name): mixed
     {
         return self::paramExists($name) ? $_GET[$name] : null;
     }
 
-    static function input(string $name): string|array|null
+    static function input(string $name): mixed
     {
         return self::inputExists($name) ? $_POST[$name] : null;
     }
@@ -90,17 +90,6 @@ class Request
         return self::input($name) == $value;
     }
 
-    /**
-     * Value Checkers with Callbacks
-     */
-
-    /**
-     * Execute $callback when $name equals $value
-     * @param string $name Description
-     * @param mixed $value Description
-     * @param callback $callback Description
-     * @return void
-     **/
     static function whenParam(string $name, $value, callable $callback): void
     {
         self::isParam($name, $value) ? $callback() : null;

@@ -1,0 +1,17 @@
+{
+    "name": "hp/dynamic_form",
+    "autoload": {
+        "psr-4": {
+            "Hp\\DynamicForm\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Lajoui Zakariae",
+            "email": "lajoui.zakariae.1@gmail.com"
+        }
+    ],
+    "require-dev": {
+        "symfony/var-dumper": "^6.4"
+    }
+}
