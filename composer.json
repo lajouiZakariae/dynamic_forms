@@ -2,7 +2,7 @@
     "name": "hp/dynamic_form",
     "autoload": {
         "psr-4": {
-            "Hp\\DynamicForm\\": "src/"
+            "Core\\": "./Core"
         }
     },
     "authors": [

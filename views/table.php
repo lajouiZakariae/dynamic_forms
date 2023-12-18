@@ -8,37 +8,45 @@
                     <?php foreach ($columns as $column) : ?>
                         <th><?php echo $column->getName() ?></th>
                     <?php endforeach; ?>
-                    <th colspan="2">Actions</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
         </thead>
         <tbody>
-            <?php foreach ($data as $item) : ?>
-                <tr>
-                    <!-- Data -->
-                    <?php foreach ($item as $value) : ?>
-                        <td>
-                            <?php echo $value ?>
+            <?php if (count($data)) : ?>
+                <?php foreach ($data as $item) : ?>
+                    <tr>
+                        <!-- Data -->
+                        <?php foreach ($item as $value) : ?>
+                            <td>
+                                <?php echo $value ?>
+                            </td>
+                        <?php endforeach; ?>
+
+                        <td class="d-flex justify-content-center">
+                            <a href="<?php echo $_SERVER['PHP_SELF'] . '?page=' . $current_page . '&action=delete' . '&' . $primary_key . '=' . $item->id ?>" class="me-3">
+
+                                <i class="fas fa-trash text-light bg-danger d-flex justify-content-center align-items-center" style="border-radius:50%; width:32px;height:32px;cursor:pointer;"></i>
+
+                            </a>
+                            <a href="<?php echo 'post.php?action=edit&' . $primary_key . '=' . $item->id ?>">
+
+                                <i class="fas fa-pencil text-light bg-primary d-flex justify-content-center align-items-center" style="border-radius:50%; width:32px;height:32px;cursor:pointer;"></i>
+
+                            </a>
                         </td>
-                    <?php endforeach; ?>
-
-                    <td>
-                        <a href="<?php echo $_SERVER['PHP_SELF'] . '?page=' . $current_page . '&action=delete' . '&' . $primary_key . '=' . $item->id ?>">
-
-                            <i class="fas fa-trash text-light bg-danger d-flex justify-content-center align-items-center" style="border-radius:50%; width:32px;height:32px;cursor:pointer;"></i>
-
-                        </a>
-                    </td>
-
-                    <td>
-                        <a href="<?php echo 'post.php?action=edit&' . $primary_key . '=' . $item->id ?>">
-
-                            <i class="fas fa-pencil text-light bg-primary d-flex justify-content-center align-items-center" style="border-radius:50%; width:32px;height:32px;cursor:pointer;"></i>
-
-                        </a>
+                    </tr>
+                <?php endforeach; ?>
+            <?php else : ?>
+                <tr>
+                    <td colspan="<?php echo count($columns) + 1 ?>">
+                        <div class="alert alert-info">
+                            No items on the table
+                        </div>
                     </td>
                 </tr>
-            <?php endforeach; ?>
+            <?php endif ?>
+        </tbody>
         </tbody>
     </table>
 

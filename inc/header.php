@@ -10,6 +10,3 @@
 </head>
 
 <body>
-
-    <?php // include(APP_DIR . "/navbar.php"); 
-    ?>

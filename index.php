@@ -1,23 +1,17 @@
 <?php
 
-use Core\DB;
+use Core\Table;
 
-require 'config.php';
-require APP_DIR . '/functions.php';
-spl_autoload_register(function ($class) {
-    require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
-});
+require './boot.php';
 require APP_DIR . '/inc/header.php';
 
 ?>
 
+<div class="container-fluid">
 
-<div class="container">
-    <?php
+    <?php Table::render('empty'); ?>
 
-
-    ?>
 </div>
 
-
-<?php include APP_DIR . "/inc/footer.php"; ?>
+<?php
+require APP_DIR . '/inc/footer.php';

@@ -1,14 +1,9 @@
 <?php
 
-use Core\DB;
 use Core\Table;
 
 require '../config.php';
-require APP_DIR . '/functions.php';
-require APP_DIR . '/vendor/autoload.php';
-spl_autoload_register(function ($class) {
-    require APP_DIR . '/Core/' . explode('\\', $class)[1] . '.php';
-});
+require '../boot.php';
 require APP_DIR . '/inc/header.php';
 
 ?>
@@ -22,6 +17,8 @@ require APP_DIR . '/inc/header.php';
              * If table name is not provided
              * it will take the name of the parent directory as a table name
              */
+
+
             Table::render('table_name'/* table name */);
             // Table::writeFile('users'/* table name */);
             ?>

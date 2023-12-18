@@ -2,28 +2,21 @@
 
 namespace Core;
 
-class Paginator
-{
+class Paginator {
     /** @var int[] $links */
-    private $links = [];
+    private $links = null;
     private ?int $current_page = null;
+    private array $data;
+    private ?int $last = null;
 
-    public function __construct(
-        private array $data,
-        private ?int $last = null,
-    ) {
-
-        if ($this->last) {
-            $this->current_page = (Request::paramExists('page') && Request::isParamInt('page'))
-                ? Request::paramInteger('page')
-                : 1;
-
-            $this->generateLinks();
-        }
+    public function __construct(array $data, ?int $last = null) {
+        $this->data = $data;
+        $this->current_page = paramInteger('page', 1);
+        $this->last = $last;
+        if ($this->last) $this->generateLinks();
     }
 
-    private function generateLinks()
-    {
+    private function generateLinks() {
         $links = [];
 
         if (3 < $this->last && $this->last <= 5) $links = range(1, 5);
@@ -41,58 +34,51 @@ class Paginator
         return $this->links = $links;
     }
 
-    public function getData(): array
-    {
+    public function getData(): array {
         return $this->data;
     }
 
-    public function getCurrentPage(): ?int
-    {
+    public function getCurrentPage(): ?int {
         return $this->current_page;
     }
 
-    public function getLast(): ?int
-    {
+    public function getLast(): ?int {
         return $this->last;
     }
 
-    public function getNext(): ?int
-    {
+    public function getNext(): ?int {
         return is_null($this->current_page)
             ? null
             : (($this->current_page === $this->last) ? null : $this->current_page + 1);
     }
 
-    public function getPrevious(): ?int
-    {
+    public function getPrevious(): ?int {
         return is_null($this->current_page)
             ? null
             : (($this->current_page === 1) ? null : $this->current_page - 1);
     }
 
-    private function urlVersion(int $page): string
-    {
+    private function urlVersion(int $page): string {
         return $_SERVER['PHP_SELF'] . '?page=' . $page;
     }
 
-    function getNextUrl(): ?string
-    {
+    function getNextUrl(): ?string {
         return $this->getNext() ? $this->urlVersion($this->getNext()) : null;
     }
 
-    function getPreviousUrl(): ?string
-    {
+    function getPreviousUrl(): ?string {
         return $this->getPrevious() ? $this->urlVersion($this->getPrevious()) : null;
     }
 
     /**
      * @return object[]
      */
-    public function getLinks()
-    {
-        return array_map(
-            fn (int $link) => (object) ['page' => $link, 'url' => $this->urlVersion($link)],
-            $this->links,
-        );
+    public function getLinks() {
+        return $this->links
+            ? array_map(
+                fn (int $link) => (object) ['page' => $link, 'url' => $this->urlVersion($link)],
+                $this->links,
+            )
+            : null;
     }
 }

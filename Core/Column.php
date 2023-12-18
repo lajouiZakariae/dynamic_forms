@@ -2,8 +2,7 @@
 
 namespace Core;
 
-class Column
-{
+class Column {
     private string $name;
     private string $type;
     private ?array $allowed_values;
@@ -14,8 +13,7 @@ class Column
     private array $numeric_types = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'bit', 'float', 'double', 'decimal'];
     private array $big_text_types = ['tinytext',  'mediumtext', 'text', 'longtext'];
 
-    public function __construct(object $_column)
-    {
+    public function __construct(object $_column) {
         $this->name = $_column->COLUMN_NAME;
         $this->type = $_column->DATA_TYPE;
         $this->max_length = $_column->CHARACTER_MAXIMUM_LENGTH;
@@ -25,7 +23,7 @@ class Column
         $this->signed = false;
 
         if (in_array($_column->DATA_TYPE, ['enum', 'set'])) {
-            $this->allowed_values = $this->extractAllowedValues($_column->COLUMN_TYPE);
+            $this->allowed_values = $this->extractPossibleValues($_column->COLUMN_TYPE);
         }
 
         if ($this->isNumeric($_column->DATA_TYPE)) {
@@ -33,39 +31,27 @@ class Column
         }
     }
 
-    public function getName(): string
-    {
+    public function getName(): string {
         return $this->name;
     }
 
-    public function getType(): string
-    {
+    public function getType(): string {
         return $this->type;
     }
 
-    public function getAllowedValues(): array
-    {
+    public function getAllowedValues(): array {
         return $this->allowed_values;
     }
 
-    function isNumeric(): bool
-    {
+    function isNumeric(): bool {
         return in_array($this->type, $this->numeric_types);
     }
 
-    function isPrimary(): bool
-    {
+    function isPrimary(): bool {
         return $this->primary;
     }
 
-    function normalizeSetValues(string $value): array
-    {
-        if (empty($value)) return [];
-        return explode(',', $value);
-    }
-
-    private function extractAllowedValues($column_type): array
-    {
+    private function extractPossibleValues($column_type): array {
         $pos_of_first = strpos($column_type, '(');
         $allowed_values_as_string = substr($column_type, $pos_of_first + 1, -1);
 
@@ -81,8 +67,7 @@ class Column
      * @param string $columnType
      * @return string
      */
-    function getInputType(): string
-    {
+    function getInputType(): string {
         $type = 'text';
 
         if ($this->getType() === 'varchar' && $this->getName() === 'email') $type = 'email';
@@ -104,38 +89,41 @@ class Column
         return $type;
     }
 
-    function isText()
-    {
+    function isText() {
         return $this->getInputType() === 'text';
     }
 
-    function isTextArea()
-    {
+    function isTextArea() {
         return $this->getInputType() === 'textarea';
     }
 
-    function isDate()
-    {
+    function isDate() {
         return $this->getInputType() === 'date';
     }
 
-    function isDateTime()
-    {
+    function isDateTime() {
         return $this->getInputType() === 'datetime-local';
     }
 
-    function isTime()
-    {
+    function isTime() {
         return $this->getInputType() === 'time';
     }
 
-    function isEnum()
-    {
+    function isEnum() {
         return $this->getInputType() === 'enum';
     }
 
-    function isSet()
-    {
+    function isSet() {
         return $this->getInputType() === 'set';
+    }
+
+    function normalizeSetValues(string $value): array {
+        if (empty($value)) return [];
+        return explode(',', $value);
+    }
+
+    function stringifySetValues(array $value): string {
+        if (empty($value)) return "";
+        return implode(',', $value);
     }
 }

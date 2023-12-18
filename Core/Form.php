@@ -2,8 +2,7 @@
 
 namespace Core;
 
-class Form extends Renderer
-{
+class Form {
     private ?string $table = null;
 
     private ?string $primaryKey = null;
@@ -14,38 +13,14 @@ class Form extends Renderer
 
     private array $entity = [];
 
-    private array $inputs = [];
+    /** @var Input[] $inputs */
+    private $inputs = [];
 
     private ?string $error = null;
 
-    private function __construct(?string $table)
-    {
-        $this->table = $table ? $table : scriptParentDir($_SERVER['SCRIPT_FILENAME']);
+    private function __construct(?string $table = null) {
+        $this->table = $table;
         $this->load();
-    }
-
-    private function load()
-    {
-        if (DB::table($this->table)->missing()) return $this->error =  $this->renderError('Table' . $this->table . ' Not Found');
-
-        $this->columns = DB::table($this->table)->getColumns();
-
-        if ($this->hasNoColumns()) return $this->error = $this->renderWarning('Table ' . $this->table . ' has no column');
-
-        $this->primaryKey = DB::table($this->table)->getPrimaryKeyColumn();
-
-        if (Request::isPost()) $this->handlePostRequest();
-
-        if (Request::isGet() && Request::isParam('action', 'edit') && Request::paramExists($this->primaryKey))
-            $this->setMode(FormMode::EDIT);
-
-        if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
-    }
-
-    private function hasNoColumns(): bool
-    {
-        return empty($this->columns)
-            || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
     }
 
     /**
@@ -53,24 +28,49 @@ class Form extends Renderer
      * @var string $formMode
      * @return void
      */
-    private function setMode(string $formMode): void
-    {
+    private function setMode(string $formMode): void {
         $this->mode = $formMode;
     }
 
-    private function isEditMode(): bool
-    {
+    private function isEditMode(): bool {
         return $this->mode === FormMode::EDIT;
     }
 
-    private function isPostMode(): bool
-    {
+    private function isPostMode(): bool {
         return $this->mode === FormMode::POST;
     }
 
-    private function isUpdateMode(): bool
-    {
+    private function isUpdateMode(): bool {
         return $this->mode === FormMode::UPDATE;
+    }
+
+    private function load() {
+        // if table missing render error
+        if (tableMissing($this->table))
+            return $this->error = '<div>Table ' . $this->table . ' Not Found</div>';
+
+        $this->columns = getColumns($this->table);
+
+        // if columns are messing render warning
+        if ($this->hasNoColumns())
+            return $this->error = '<div>Table ' . $this->table . ' has no column</div>';
+
+        // get primary key
+        $this->primaryKey = getPrimaryKey($this->table);
+
+        // handle post request 
+        if (isPost()) $this->handlePostRequest();
+
+        // if edit form set edit mode
+        if (isParam('action', 'edit') && paramExists($this->primaryKey)) $this->setMode(FormMode::EDIT);
+
+        // if showing edit form  or updating get Data 
+        if ($this->isEditMode() || $this->isUpdateMode()) $this->fetchEntity();
+    }
+
+    private function hasNoColumns(): bool {
+        return empty($this->columns)
+            || (count($this->columns) === 1 && $this->columns[0]->isPrimary());
     }
 
     /**
@@ -78,74 +78,85 @@ class Form extends Renderer
      * @param string $key
      * @return Column $column
      */
-    private function getColumnByName(string $key): Column
-    {
+    private function getColumnByName(string $key): Column {
         $filtered = array_filter($this->columns, fn (Column $column) => $column->getName() === $key);
 
         return $filtered[array_key_first($filtered)];
     }
 
-    private function fetchEntity(): void
-    {
-        foreach (DB::table($this->table)->find(Request::param($this->primaryKey)) as $key => $value) {
+    private function fetchEntity() {
+        $entity = find($this->table, param($this->primaryKey));
+
+        if (!$entity) return $this->error = "<div class=\"alert alert-danger\">Item Not Found</div>";
+
+        foreach ($entity as $key => $value) {
             $this->entity[$key] = new Input($this->getColumnByName($key), $value);
         }
     }
 
-    private function populateInputs(): void
-    {
+    private function populateInputs(): void {
         foreach ($this->columns as $col) {
             if (!$col->isPrimary()) {
-                $this->inputs[$col->getName()] = new Input($col, Request::input($col->getName()));
+                $this->inputs[$col->getName()] = new Input($col, input($col->getName()));
             }
         }
     }
 
-    private function handleEditing()
-    {
+    private function handlePostRequest() {
         $this->populateInputs();
 
-        /**
-         * Updating resource in database
-         */
-
-        // DB::table($this->table)
-        //     ->whereEquals($this->primaryKey, Request::param($this->primaryKey))
-        //     ->update($this->inputs);
-
-        $page = Session::get("page", 1);
-        // redirect('index.php' . ($page ? "?page=$page" : ''));
-    }
-
-    private function handleCreation()
-    {
-        $this->populateInputs();
-        /**
-         * Inserting to database
-         */
-        // DB::table($this->table)->insert($this->inputs);
-        // redirect('index.php');
-    }
-
-    private function handlePostRequest()
-    {
-        Request::whenParam('action', 'edit', function () {
+        whenParam('action', 'edit', function () {
             $this->setMode(FormMode::UPDATE);
             $this->handleEditing();
         });
 
-        Request::whenParam('action', 'create', function () {
+        whenParam('action', 'create', function () {
             $this->setMode(FormMode::POST);
             $this->handleCreation();
         });
+    }
+
+    private function handleEditing() {
+        /**
+         * Updating resource in database
+         */
+        $inputs = [];
+
+        foreach ($this->inputs as $key => $input) {
+            if ($input->getColumn()->isSet())
+                $inputs[$key] = $input->getColumn()->stringifySetValues($input->getValue());
+            else $inputs[$key] = $input->getValue();
+        }
+
+        update($this->table, $inputs, param($this->primaryKey));
+        $this->redirect();
+    }
+
+    private function handleCreation() {
+        /**
+         * Inserting to database
+         */
+        $inputs = [];
+
+        foreach ($this->inputs as $key => $input) {
+            $inputs[$key] = $input->getValue();
+        }
+
+        insert($this->table, $inputs);
+        $this->redirect();
+    }
+
+    private function redirect(): void {
+        $page = Session::get("page");
+        if ($page) redirect("index.php?page=$page");
+        else redirect("index.php");
     }
 
     /**
      * Cenerates the table html with data
      * @return ?string
      */
-    public function _html(): string
-    {
+    public function _html(): string {
         if ($this->error) return $this->error;
 
         $url = 'post.php';
@@ -174,8 +185,7 @@ class Form extends Renderer
      * @param ?string $table
      * @return ?string
      */
-    public static function html(?string $table = null): string
-    {
+    public static function html(?string $table = null): string {
         return (new self($table))->_html();
     }
 
@@ -184,8 +194,7 @@ class Form extends Renderer
      * @param ?string $table
      * @return void
      */
-    public static function render(?string $table = null): void
-    {
+    public static function render(?string $table = null): void {
         echo (new self($table))->_html();
     }
 
@@ -195,8 +204,7 @@ class Form extends Renderer
      * @param ?string $filename
      * @return int|null
      */
-    public static function writeFile(?string $table, string $filename = 'draft.php'): int|null
-    {
+    public static function writeFile(?string $table, string $filename = 'draft.php'): int|null {
         $content = (new self($table))->_html();
         return file_put_contents($filename, $content);
     }
